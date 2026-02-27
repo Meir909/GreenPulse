@@ -11,8 +11,13 @@ load_dotenv()
 app = Flask(__name__)
 CORS(app)
 
-# Инициализируем OpenAI клиент
-client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+# Инициализируем OpenAI клиент с обработкой ошибок
+try:
+    client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+    print("✅ OpenAI клиент успешно инициализирован")
+except Exception as e:
+    print(f"❌ Ошибка инициализации OpenAI клиента: {e}")
+    client = None
 
 # Демо данные ESP32 (временно, пока ESP32 не подключена)
 demo_sensor_data = {
@@ -124,6 +129,9 @@ def ai_analyze_sensors():
 Ответ в стиле научного консультанта. Используй эмодзи для наглядности."""
 
     try:
+        if not client:
+            return jsonify({'status': 'error', 'message': 'OpenAI клиент не доступен'}), 500
+            
         response = client.chat.completions.create(
             model="gpt-4o",
             messages=[
@@ -180,6 +188,9 @@ def ai_predict_growth():
 Дай точные числа и объяснение."""
 
     try:
+        if not client:
+            return jsonify({'status': 'error', 'message': 'OpenAI клиент не доступен'}), 500
+            
         response = client.chat.completions.create(
             model="gpt-4o",
             messages=[
@@ -237,6 +248,9 @@ def chatbot():
 Если не знаешь ответ - честно скажи и предложи альтернативу."""
 
     try:
+        if not client:
+            return jsonify({'status': 'error', 'message': 'OpenAI клиент не доступен'}), 500
+            
         response = client.chat.completions.create(
             model="gpt-4o",
             messages=[
