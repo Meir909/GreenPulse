@@ -595,8 +595,8 @@
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        // API базовый URL
-        const API_URL = 'http://localhost:5000/api';
+        // API базовый URL - используем относительный путь для работы на любом домене
+        const API_URL = '/api';
 
         // Функция для показ/скрытия AI функций
         function toggleAIFunctions() {

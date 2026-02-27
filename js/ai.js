@@ -1,10 +1,15 @@
 // AI Analysis using OpenAI API (GPT-4o-mini)
 
+let currentStationData = null;
+
 async function analyzeStation() {
     if (!currentStationId) return;
 
     const station = getStationById(currentStationId);
     if (!station) return;
+
+    // Сохраняем данные текущей станции
+    currentStationData = station;
 
     const analyzeButton = document.getElementById('analyzeButton');
     const aiResponse = document.getElementById('aiResponse');
@@ -18,15 +23,33 @@ async function analyzeStation() {
     aiContent.innerHTML = '';
 
     try {
-        // Prepare the prompt for OpenAI GPT-4
-        const prompt = prepareAnalysisPrompt(station);
+        // Используем наш Flask API endpoint
+        const response = await fetch('/api/ai-analyze-sensors', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                temperature: station.temperature,
+                humidity: station.humidity,
+                light_intensity: 450, // дефолтное значение
+                co2_ppm: 420, // дефолтное значение
+                latitude: station.lat,
+                longitude: station.lng,
+                satellites: 8 // дефолтное значение
+            }),
+        });
 
-        // Call OpenAI API with GPT-4o-mini model
-        const response = await callOpenAIAPI(prompt);
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Ошибка сервера ИИ');
+        }
 
+        const data = await response.json();
+        
         // Hide spinner and display response
         aiSpinner.style.display = 'none';
-        aiContent.innerHTML = formatAIResponse(response);
+        aiContent.innerHTML = formatAIResponse(data.analysis);
 
     } catch (error) {
         console.error('AI Analysis error:', error);
@@ -34,7 +57,7 @@ async function analyzeStation() {
         aiContent.innerHTML = `
             <div style="color: var(--critical-color); padding: 15px; background: rgba(255, 23, 68, 0.1); border-radius: 8px; border-left: 3px solid var(--critical-color);">
                 <strong>⚠️ Ошибка анализа</strong><br>
-                <small>${error.message || 'Проверьте API ключ в js/config.js и убедитесь что используется модель gpt-4o-mini или gpt-4'}</small>
+                <small>${error.message || 'Убедитесь что Flask сервер запущен и настроен OpenAI API ключ'}</small>
             </div>
         `;
     } finally {
@@ -79,44 +102,32 @@ Be specific with numbers and timeframes. Use technical terms but make it underst
 }
 
 async function callOpenAIAPI(prompt) {
-    const apiKey = CONFIG.OPENAI_API_KEY;
-    const model = CONFIG.OPENAI_MODEL || 'gpt-4o-mini';
-
-    // Check if API key is configured
-    if (!apiKey || apiKey.includes('your-api-key')) {
-        throw new Error('API ключ OpenAI не настроен. Пожалуйста, добавьте ваш ключ в js/config.js');
-    }
-
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    // Используем наш Flask API как прокси для OpenAI
+    const response = await fetch('/api/ai-analyze-sensors', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
-            model: model, // Using gpt-4o-mini as specified
-            messages: [
-                {
-                    role: 'system',
-                    content: 'Ты эксперт в области очистки воды и мониторинга качества питьевой воды. Предоставляй детальные, практические и полезные анализы на русском языке.',
-                },
-                {
-                    role: 'user',
-                    content: prompt,
-                },
-            ],
-            temperature: 0.7,
-            max_tokens: CONFIG.MAX_TOKENS || 1200,
+            prompt: prompt,
+            // Добавляем текущие данные датчиков
+            temperature: currentStationData?.temperature || 22,
+            humidity: currentStationData?.humidity || 65,
+            light_intensity: currentStationData?.light_intensity || 450,
+            co2_ppm: currentStationData?.co2_ppm || 420,
+            latitude: currentStationData?.lat || 55.7558,
+            longitude: currentStationData?.lng || 37.6173,
+            satellites: currentStationData?.satellites || 8
         }),
     });
 
     if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.error?.message || 'Ошибка API OpenAI. Возможно, неверный ключ или лимит превышен.');
+        throw new Error(error.message || 'Ошибка сервера ИИ. Проверьте настройки API.');
     }
 
     const data = await response.json();
-    return data.choices[0].message.content;
+    return data.analysis;
 }
 
 function formatAIResponse(content) {

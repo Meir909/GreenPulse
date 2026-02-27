@@ -19,34 +19,32 @@ async function getAIForecast() {
     forecastBtn.textContent = 'Получаю прогноз...';
 
     try {
-        const co2Data = calculateCO2Absorbed(station);
-        const prompt = `Ты эксперт в системах очистки воды. Дай подробный прогноз и анализ для систем очистки воды на основе этих данных:
+        // Используем наш Flask API endpoint для прогноза роста
+        const response = await fetch('/api/ai-predict-growth', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                ph: station.phCurrent,
+                temperature: station.temperature,
+                light_intensity: 450
+            }),
+        });
 
-Текущий pH уровень: ${station.phCurrent.toFixed(2)} (оптимальный диапазон: 6.0 - 7.5)
-Растворённый CO2: ${station.co2Current.toFixed(1)} мг/л (норма: 2 мг/л)
-Эффективность очистки: ${station.efficiency}%
-Статус фильтров: ${station.filterUsagePercent.toFixed(0)}% использованы
-CO2 поглощено сегодня: ${co2Data.totalGrams.toFixed(3)} граммов
-Объём обработанной воды: ${station.volumeWater} литров за ${station.timeHours} часов
-Зона обслуживания: ${station.radiusKm} км радиус, население: ${(station.populationCovered/1000).toFixed(0)}K человек
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Ошибка сервера ИИ');
+        }
 
-Дай:
-1. Оценку критичности ситуации
-2. Прогноз на 24 часа
-3. Рекомендации по улучшению качества воды
-4. Какое население может пострадать от низкого качества в зоне
-5. Время до требуемого обслуживания фильтров
-
-Ответь кратко, профессионально, с конкретными цифрами.`;
-
-        const response = await callOpenAIAPI(prompt);
+        const data = await response.json();
 
         // Отобразить прогноз
         const forecastContent = `
             <h4>📈 AI Прогноз и Анализ</h4>
-            ${response}
+            ${data.prediction}
             <div style="margin-top: 20px; padding: 15px; background: rgba(0, 255, 136, 0.1); border-radius: 8px; border-left: 3px solid var(--success-color); font-size: 12px; color: var(--text-light);">
-                <strong>💡 Совет:</strong> Немедленно замените фильтры и проверьте датчики Arduino.
+                <strong>💡 Совет:</strong> Регулярно проверяйте параметры системы для оптимальной производительности.
             </div>
         `;
 
@@ -54,7 +52,7 @@ CO2 поглощено сегодня: ${co2Data.totalGrams.toFixed(3)} грам
 
     } catch (error) {
         console.error('Forecast error:', error);
-        alert('⚠️ Ошибка получения прогноза. Проверьте API ключ.');
+        alert('⚠️ Ошибка получения прогноза. Убедитесь что сервер настроен и работает.');
     } finally {
         forecastBtn.disabled = false;
         forecastBtn.textContent = 'Получить детальный прогноз';
