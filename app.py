@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 import os
 from dotenv import load_dotenv
@@ -276,6 +276,21 @@ def chatbot():
 def health():
     """Проверка что сервер работает"""
     return jsonify({'status': 'ok', 'message': 'GreenPulse API работает'}), 200
+
+@app.route('/')
+def index():
+    """Главная страница"""
+    return send_from_directory('.', 'index-project-v2.html')
+
+@app.route('/stations')
+def stations():
+    """Страница станций"""
+    return send_from_directory('.', 'stations-v2.html')
+
+@app.route('/<path:filename>')
+def static_files(filename):
+    """Обслуживание статических файлов"""
+    return send_from_directory('.', filename)
 
 if __name__ == '__main__':
     # Для локального развития
