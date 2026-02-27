@@ -140,10 +140,13 @@ def ai_analyze_sensors():
             'status': 'success',
             'analysis': analysis,
             'parameters': {
-                'ph': ph,
                 'temperature': temperature,
+                'humidity': humidity,
                 'light_intensity': light_intensity,
-                'co2_ppm': co2_ppm
+                'co2_ppm': co2_ppm,
+                'latitude': latitude,
+                'longitude': longitude,
+                'satellites': satellites
             }
         }), 200
 
@@ -261,4 +264,9 @@ def health():
     return jsonify({'status': 'ok', 'message': 'GreenPulse API работает'}), 200
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    # Для локального развития
+    port = int(os.getenv('PORT', 5000))
+    debug = os.getenv('FLASK_ENV') == 'development'
+
+    # Render использует PORT переменную
+    app.run(debug=debug, host='0.0.0.0', port=port)
