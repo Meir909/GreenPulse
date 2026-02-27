@@ -279,18 +279,37 @@ def health():
 
 @app.route('/')
 def index():
-    """Главная страница"""
-    return send_from_directory('.', 'index-project-v2.html')
+    """Главная страница - Serve React index.html"""
+    dist_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'dist')
+    if os.path.exists(os.path.join(dist_path, 'index.html')):
+        return send_from_directory(dist_path, 'index.html')
+    else:
+        return jsonify({'error': 'React build not found. Run: npm run build'}), 503
 
-@app.route('/stations')
-def stations():
-    """Страница станций"""
-    return send_from_directory('.', 'stations-v2.html')
+@app.route('/assets/<path:filename>')
+def serve_assets(filename):
+    """Serve static assets from React build"""
+    dist_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'dist')
+    return send_from_directory(os.path.join(dist_path, 'assets'), filename)
 
 @app.route('/<path:filename>')
 def static_files(filename):
-    """Обслуживание статических файлов"""
-    return send_from_directory('.', filename)
+    """Serve static files from React build (CSS, JS, etc.)"""
+    dist_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'dist')
+    file_path = os.path.join(dist_path, filename)
+
+    # Check if file exists in dist directory
+    if os.path.exists(file_path) and os.path.isfile(file_path):
+        return send_from_directory(dist_path, filename)
+
+    # For React Router - serve index.html for all non-API routes
+    # But only if it doesn't look like a specific file request
+    if not any(filename.startswith(prefix) for prefix in ['api/', 'assets/']):
+        index_path = os.path.join(dist_path, 'index.html')
+        if os.path.exists(index_path):
+            return send_from_directory(dist_path, 'index.html')
+
+    return jsonify({'error': f'File not found: {filename}'}), 404
 
 if __name__ == '__main__':
     # Для локального развития
