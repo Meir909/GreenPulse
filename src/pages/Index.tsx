@@ -11,6 +11,7 @@ import RoadmapSection from "@/components/RoadmapSection";
 import MarketSection from "@/components/MarketSection";
 import TeamSection from "@/components/TeamSection";
 import Footer from "@/components/FooterSection";
+import ChatbotFloatingButton from "@/components/ChatbotFloatingButton";
 
 const Index = () => {
   return (
@@ -28,6 +29,7 @@ const Index = () => {
       <MarketSection />
       <TeamSection />
       <Footer />
+      <ChatbotFloatingButton />
     </div>
   );
 };

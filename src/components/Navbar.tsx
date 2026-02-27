@@ -8,6 +8,7 @@ const navItems = [
   { href: "#calculator", label: "Калькулятор" },
   { href: "#business", label: "Бизнес" },
   { href: "#team", label: "Команда" },
+  { href: "/stations", label: "Станции", isRoute: true },
 ];
 
 const Navbar = () => {
@@ -30,13 +31,13 @@ const Navbar = () => {
       }`}
     >
       <div className="container mx-auto px-4 flex items-center justify-between">
-        <a href="#" className="font-headline text-xl font-bold text-gradient">
+        <a href="/" className="font-headline text-xl font-bold text-gradient">
           GreenPulse
         </a>
 
         {/* Desktop */}
         <div className="hidden md:flex items-center gap-8">
-          {navItems.map((item) => (
+          {navItems.filter(item => !item.isRoute).map((item) => (
             <a
               key={item.href}
               href={item.href}
@@ -47,20 +48,30 @@ const Navbar = () => {
           ))}
         </div>
 
-        {/* Mobile toggle */}
-        <button
-          onClick={() => setMobileOpen(!mobileOpen)}
-          className="md:hidden text-foreground"
-          aria-label="Toggle menu"
-        >
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            {mobileOpen ? (
-              <path d="M18 6L6 18M6 6l12 12" />
-            ) : (
-              <path d="M3 12h18M3 6h18M3 18h18" />
-            )}
-          </svg>
-        </button>
+        {/* Right side - Stations button */}
+        <div className="flex items-center gap-4">
+          <a
+            href="/stations"
+            className="hidden md:inline-flex px-4 py-2 rounded-lg bg-gradient-to-r from-cyan-600 to-green-600 hover:from-cyan-700 hover:to-green-700 text-white text-sm font-medium transition-all duration-300 border border-cyan-400/50 hover:border-cyan-300"
+          >
+            🗺️ Станции
+          </a>
+
+          {/* Mobile toggle */}
+          <button
+            onClick={() => setMobileOpen(!mobileOpen)}
+            className="md:hidden text-foreground"
+            aria-label="Toggle menu"
+          >
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              {mobileOpen ? (
+                <path d="M18 6L6 18M6 6l12 12" />
+              ) : (
+                <path d="M3 12h18M3 6h18M3 18h18" />
+              )}
+            </svg>
+          </button>
+        </div>
       </div>
 
       {/* Mobile menu */}
@@ -75,7 +86,11 @@ const Navbar = () => {
               key={item.href}
               href={item.href}
               onClick={() => setMobileOpen(false)}
-              className="text-sm text-muted-foreground hover:text-primary transition-colors"
+              className={`text-sm transition-colors ${
+                item.isRoute
+                  ? "px-3 py-2 rounded-lg bg-gradient-to-r from-cyan-600 to-green-600 text-white font-medium"
+                  : "text-muted-foreground hover:text-primary"
+              }`}
             >
               {item.label}
             </a>
