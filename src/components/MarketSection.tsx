@@ -37,22 +37,22 @@ const MarketSection = () => {
               style={{
                 width: c.size,
                 height: c.size,
-                borderColor: i === 2 ? "hsl(153 100% 50% / 0.9)" : i === 1 ? "hsl(153 100% 50% / 0.6)" : "hsl(153 100% 50% / 0.35)",
+                borderColor: i === 2 ? "hsl(153 100% 50% / 0.95)" : i === 1 ? "hsl(153 100% 50% / 0.75)" : "hsl(153 100% 50% / 0.45)",
                 background: i === 2
-                  ? "hsl(153 100% 50% / 0.15)"
+                  ? "hsl(153 100% 50% / 0.25)"
                   : i === 1
-                  ? "hsl(153 100% 50% / 0.08)"
-                  : "hsl(153 100% 50% / 0.04)",
+                  ? "hsl(153 100% 50% / 0.14)"
+                  : "hsl(153 100% 50% / 0.08)",
                 boxShadow: i === 2
-                  ? "0 0 40px hsl(153 100% 50% / 0.4), 0 0 80px hsl(153 100% 50% / 0.2)"
+                  ? "0 0 60px hsl(153 100% 50% / 0.6), 0 0 120px hsl(153 100% 50% / 0.3), inset 0 0 40px hsl(153 100% 50% / 0.2)"
                   : i === 1
-                  ? "0 0 30px hsl(153 100% 50% / 0.2)"
-                  : "0 0 20px hsl(153 100% 50% / 0.1)",
+                  ? "0 0 40px hsl(153 100% 50% / 0.4), 0 0 80px hsl(153 100% 50% / 0.2), inset 0 0 30px hsl(153 100% 50% / 0.15)"
+                  : "0 0 30px hsl(153 100% 50% / 0.25), inset 0 0 20px hsl(153 100% 50% / 0.1)",
               }}
             >
-              <span className="font-mono-data text-xs text-primary font-bold">{c.label}</span>
-              <span className="font-headline text-lg md:text-xl font-bold text-foreground">{c.value}</span>
-              <span className="text-[10px] text-muted-foreground max-w-[80%]">{c.desc}</span>
+              <span className="font-mono-data text-sm md:text-base text-primary font-bold drop-shadow-[0_0_8px_rgba(0,212,255,0.8)]">{c.label}</span>
+              <span className="font-headline text-2xl md:text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-b from-cyan-300 to-green-300 drop-shadow-[0_0_12px_rgba(0,212,255,0.8)]">{c.value}</span>
+              <span className="text-[11px] md:text-xs text-cyan-200/90 max-w-[85%] drop-shadow-[0_0_6px_rgba(0,212,255,0.5)]">{c.desc}</span>
             </motion.div>
           ))}
         </div>
