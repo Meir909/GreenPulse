@@ -47,7 +47,7 @@ const CalculatorSection = () => {
                 onChange={(e) => setBenches(Number(e.target.value))}
                 className="w-full accent-primary h-2 bg-muted rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-primary [&::-webkit-slider-thumb]:shadow-[0_0_10px_rgba(0,255,136,0.5)]"
               />
-              <p className="font-mono-data text-3xl font-bold text-primary mt-2">{benches}</p>
+              <p className="font-mono-data text-5xl font-bold text-primary mt-4 drop-shadow-[0_0_8px_rgba(0,212,255,0.6)]">{benches}</p>
             </div>
 
             {/* City select */}
@@ -78,9 +78,9 @@ const CalculatorSection = () => {
 };
 
 const ResultCard = ({ label, value }: { label: string; value: string }) => (
-  <div className="glass rounded-xl p-4 text-center">
-    <p className="text-xs text-muted-foreground mb-1">{label}</p>
-    <p className="font-mono-data text-xl md:text-2xl font-bold text-primary">{value}</p>
+  <div className="glass rounded-xl p-4 text-center border border-primary/30">
+    <p className="text-xs text-muted-foreground mb-2 uppercase tracking-wider">{label}</p>
+    <p className="font-mono-data text-2xl md:text-3xl font-bold text-primary drop-shadow-[0_0_10px_rgba(0,212,255,0.5)]">{value}</p>
   </div>
 );
 
