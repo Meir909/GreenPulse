@@ -55,8 +55,42 @@ const ChatbotModal = ({ isOpen, onClose }: ChatbotModalProps) => {
     setInputValue("");
     setIsLoading(true);
 
-    // Имитируем задержку и получение ответа
-    setTimeout(() => {
+    try {
+      // Получаем историю сообщений для контекста
+      const conversationHistory = messages.map(m => ({
+        role: m.role,
+        content: m.content
+      }));
+
+      // Отправляем запрос на Flask API
+      const response = await fetch("/api/chatbot", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          message: inputValue,
+          history: conversationHistory,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      const assistantMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        role: "assistant",
+        content: data.response || "Извините, не удалось получить ответ. Пожалуйста, попробуйте снова.",
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, assistantMessage]);
+    } catch (error) {
+      console.error("Chatbot error:", error);
+
+      // Fallback на генерирование ответа если API недоступен
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
@@ -64,8 +98,9 @@ const ChatbotModal = ({ isOpen, onClose }: ChatbotModalProps) => {
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, assistantMessage]);
+    } finally {
       setIsLoading(false);
-    }, 800);
+    }
   };
 
   const generateAIResponse = (userInput: string): string => {
