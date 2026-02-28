@@ -239,64 +239,22 @@ const StationsPage = () => {
       <Navbar />
 
       {/* Основной контент */}
-      <main className="relative pt-32 pb-24 px-4">
-        {/* Заголовок */}
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="text-center mb-8"
-        >
-          <p className="text-sm uppercase tracking-widest text-primary mb-3 font-mono-data">
-            Сеть станций
-          </p>
-          <h1 className="font-headline text-4xl md:text-5xl font-bold text-foreground mb-4">
-            GreenPulse <span className="text-gradient">Карта Станций</span>
-          </h1>
-          <p className="text-gray-400 max-w-2xl mx-auto">
-            Мониторьте все ваши станции на интерактивной карте. Нажмите на маркер для просмотра информации, анализа и прогноза.
-          </p>
-        </motion.div>
+      <main className="relative pt-20 pb-0 h-[calc(100vh-80px)] px-0">
+        {/* Интерактивная карта на весь экран */}
+        <StationsMapComponent
+          onStationSelect={setSelectedStation}
+          onAnalyzeClick={handleAnalyzeClick}
+          onPredictClick={handlePredictClick}
+        />
 
-        {/* Интерактивная карта */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.2 }}
-          className="container mx-auto max-w-7xl mb-16 h-[600px] md:h-[700px]"
-        >
-          <StationsMapComponent
-            onStationSelect={setSelectedStation}
-            onAnalyzeClick={handleAnalyzeClick}
-            onPredictClick={handlePredictClick}
-          />
-        </motion.div>
-
-        {/* Сетка карт станций */}
-        <div className="container mx-auto max-w-7xl">
+        {/* Вкладки анализа и прогноза (наложение) */}
+        {selectedStation && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.3 }}
-            className="mb-12"
+            transition={{ duration: 0.6 }}
+            className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black to-black/80 backdrop-blur-md p-6 max-h-[50vh] overflow-y-auto z-20 border-t border-cyan-500/30"
           >
-            <h2 className="text-2xl font-bold text-foreground mb-6 flex items-center gap-2">
-              📊 Станции в формате карточек
-            </h2>
-            <StationsMap
-              onAnalyzeClick={handleAnalyzeClick}
-              onPredictClick={handlePredictClick}
-            />
-          </motion.div>
-
-          {/* Вкладки анализа и прогноза */}
-          {selectedStation && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.4 }}
-              className="space-y-6"
-            >
               {/* Кнопки вкладок */}
               <div className="flex gap-3">
                 <button
@@ -341,7 +299,6 @@ const StationsPage = () => {
               )}
             </motion.div>
           )}
-        </div>
       </main>
 
       {/* Плавающая кнопка чатбота */}

@@ -1,9 +1,8 @@
-import { MapContainer, TileLayer, Marker, Circle, Popup } from "react-leaflet";
-import { useState } from "react";
+import { MapContainer, TileLayer, Marker, Circle, Popup, useMap } from "react-leaflet";
+import { useState, useEffect, useRef } from "react";
 import { LatLngExpression } from "leaflet";
 import L from "leaflet";
 import { motion } from "framer-motion";
-import { X } from "lucide-react";
 
 interface Station {
   id: number;
@@ -64,22 +63,68 @@ const demoStations: Station[] = [
   },
 ];
 
-// Радиус очистки воздуха одной станции в км (0.8 км = 800 метров)
+// Радиус очистки воздуха в км
 const PURIFICATION_RADIUS = 0.8;
 
-// Создаем кастомные иконки для маркеров
-const createStationIcon = (status: string) => {
+// Казахстан координаты (центр)
+const KAZAKHSTAN_CENTER: LatLngExpression = [48.0196, 66.9237];
+
+// Создаем кастомные иконки
+const createStationIcon = () => {
   return L.divIcon({
     html: `
-      <div class="flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r from-cyan-600 to-green-600 border-2 border-cyan-300 shadow-lg shadow-cyan-500/50">
-        <div class="text-white text-sm font-bold">📍</div>
+      <div class="flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-r from-cyan-600 to-green-600 border-2 border-cyan-300 shadow-lg shadow-cyan-500/50 relative">
+        <div class="text-white text-lg font-bold">📍</div>
+        <div class="absolute inset-0 rounded-full border-2 border-cyan-400 animate-ping opacity-75"></div>
       </div>
     `,
     className: "custom-marker",
-    iconSize: [32, 32],
-    iconAnchor: [16, 16],
-    popupAnchor: [0, -16],
+    iconSize: [40, 40],
+    iconAnchor: [20, 40],
+    popupAnchor: [0, -40],
   });
+};
+
+const createUserIcon = () => {
+  return L.divIcon({
+    html: `
+      <div class="flex items-center justify-center w-8 h-8 rounded-full bg-blue-600 border-2 border-blue-300 shadow-lg shadow-blue-500/50">
+        <div class="text-white text-sm font-bold">📍</div>
+      </div>
+    `,
+    className: "user-marker",
+    iconSize: [32, 32],
+    iconAnchor: [16, 32],
+    popupAnchor: [0, -32],
+  });
+};
+
+// Компонент для управления геолокацией
+const LocationControl = ({ onLocationFound }: { onLocationFound: (lat: number, lng: number) => void }) => {
+  const map = useMap();
+  const [hasLocation, setHasLocation] = useState(false);
+
+  useEffect(() => {
+    // Запрашиваем геолокацию
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          onLocationFound(latitude, longitude);
+          setHasLocation(true);
+          // Центрируем на пользователя
+          map.setView([latitude, longitude], 12);
+        },
+        (error) => {
+          console.log("Геолокация отклонена или недоступна:", error);
+          // Если геолокация недоступна, показываем Казахстан
+          map.setView(KAZAKHSTAN_CENTER, 5);
+        }
+      );
+    }
+  }, [map, onLocationFound]);
+
+  return null;
 };
 
 const StationsMapComponent = ({
@@ -87,27 +132,55 @@ const StationsMapComponent = ({
   onAnalyzeClick,
   onPredictClick,
 }: StationsMapComponentProps) => {
-  const [selectedStationModal, setSelectedStationModal] = useState<Station | null>(null);
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [hasLocationAccess, setHasLocationAccess] = useState(false);
+  const mapRef = useRef(null);
 
-  // Центр карты между Актау и Алматы
-  const mapCenter: LatLngExpression = [43.4425, 64.059];
-  const mapZoom = 8;
+  const handleLocationFound = (lat: number, lng: number) => {
+    setUserLocation({ lat, lng });
+    setHasLocationAccess(true);
+  };
+
+  // Начальный центр карты - Казахстан если нет доступа, иначе будет установлено в LocationControl
+  const mapCenter = userLocation ? [userLocation.lat, userLocation.lng] : KAZAKHSTAN_CENTER;
+  const mapZoom = userLocation ? 12 : 5;
 
   return (
-    <div className="relative w-full h-screen rounded-2xl border border-cyan-500/30 overflow-hidden">
+    <div className="relative w-full h-full rounded-2xl border border-cyan-500/30 overflow-hidden shadow-2xl">
       {/* Карта */}
       <MapContainer
-        center={mapCenter}
+        center={mapCenter as LatLngExpression}
         zoom={mapZoom}
         style={{ width: "100%", height: "100%", zIndex: 0 }}
         className="bg-black"
+        ref={mapRef}
       >
-        {/* Слой карты */}
+        {/* Слой карты OSM */}
         <TileLayer
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           attribution='&copy; OpenStreetMap contributors'
           className="opacity-75"
         />
+
+        {/* Управление геолокацией */}
+        <LocationControl onLocationFound={handleLocationFound} />
+
+        {/* Маркер пользователя (если разрешена геолокация) */}
+        {userLocation && (
+          <Marker
+            position={[userLocation.lat, userLocation.lng]}
+            icon={createUserIcon()}
+          >
+            <Popup>
+              <div className="bg-black/90 text-white p-2 rounded-lg border border-blue-500/30">
+                <h4 className="font-bold text-blue-300">Ваша локация</h4>
+                <p className="text-xs text-gray-300">
+                  {userLocation.lat.toFixed(4)}°N, {userLocation.lng.toFixed(4)}°E
+                </p>
+              </div>
+            </Popup>
+          </Marker>
+        )}
 
         {/* Станции и их радиусы очистки */}
         {demoStations.map((station) => (
@@ -115,7 +188,7 @@ const StationsMapComponent = ({
             {/* Круг радиуса очистки воздуха */}
             <Circle
               center={[station.latitude, station.longitude]}
-              radius={PURIFICATION_RADIUS * 1000} // Конвертируем км в метры
+              radius={PURIFICATION_RADIUS * 1000}
               pathOptions={{
                 color: "hsl(153 100% 50% / 0.5)",
                 weight: 2,
@@ -129,41 +202,38 @@ const StationsMapComponent = ({
             {/* Маркер станции */}
             <Marker
               position={[station.latitude, station.longitude]}
-              icon={createStationIcon(station.status)}
+              icon={createStationIcon()}
               eventHandlers={{
                 click: () => {
-                  setSelectedStationModal(station);
                   onStationSelect(station);
                 },
               }}
             >
               <Popup>
-                <div className="bg-black/90 text-white p-3 rounded-lg border border-cyan-500/30 max-w-xs">
-                  <h3 className="font-bold text-cyan-300 mb-2">{station.name}</h3>
+                <div className="bg-black/90 text-white p-3 rounded-lg border border-cyan-500/30 min-w-max">
+                  <h3 className="font-bold text-cyan-300 mb-2 text-sm">{station.name}</h3>
                   <div className="text-xs space-y-1 mb-3">
                     <p>🌡️ Температура: {station.temperature}°C</p>
                     <p>💧 Влажность: {station.humidity}%</p>
                     <p>🌱 CO2: {station.co2_ppm} ppm</p>
                     <p>⚗️ pH: {station.ph}</p>
                     <p>☀️ Свет: {station.light_intensity} люкс</p>
-                    <p>📍 Радиус очистки: {PURIFICATION_RADIUS} км</p>
+                    <p>📍 Радиус: {PURIFICATION_RADIUS} км</p>
                   </div>
                   <div className="flex gap-2">
                     <button
                       onClick={() => {
                         onAnalyzeClick(station);
-                        setSelectedStationModal(null);
                       }}
-                      className="flex-1 bg-cyan-600 hover:bg-cyan-700 text-white px-3 py-1 rounded text-xs font-bold transition-colors"
+                      className="flex-1 bg-cyan-600 hover:bg-cyan-700 text-white px-2 py-1 rounded text-xs font-bold transition-colors"
                     >
                       📊 Анализ
                     </button>
                     <button
                       onClick={() => {
                         onPredictClick(station);
-                        setSelectedStationModal(null);
                       }}
-                      className="flex-1 bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs font-bold transition-colors"
+                      className="flex-1 bg-green-600 hover:bg-green-700 text-white px-2 py-1 rounded text-xs font-bold transition-colors"
                     >
                       🔮 Прогноз
                     </button>
@@ -175,41 +245,36 @@ const StationsMapComponent = ({
         ))}
       </MapContainer>
 
-      {/* Панель информации о карте */}
+      {/* Статус геолокации */}
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="absolute bottom-6 left-6 bg-gradient-to-br from-black/90 to-black/80 backdrop-blur-md p-4 rounded-xl border border-cyan-500/30 max-w-xs z-10"
+        className="absolute top-4 left-4 bg-black/80 backdrop-blur-md p-2 rounded-lg border border-cyan-500/30 text-xs z-10"
       >
-        <h3 className="text-sm font-bold text-cyan-300 mb-2">📡 Статус сети</h3>
-        <div className="text-xs text-gray-300 space-y-1">
-          <p>✅ Активных станций: {demoStations.filter(s => s.status === 'active').length}</p>
-          <p>🌍 Охват территории: {(demoStations.length * PURIFICATION_RADIUS * 3.14).toFixed(1)} км²</p>
-          <p>👥 Обслуживаемые люди: {demoStations.length * 15000}</p>
-          <p className="text-cyan-400 mt-2">💚 Экономия: ${demoStations.length * 1900}/год</p>
-        </div>
+        {userLocation ? (
+          <div className="text-green-400">
+            ✅ Геолокация включена
+          </div>
+        ) : (
+          <div className="text-yellow-400">
+            📍 Геолокация отключена - показана вся карта Казахстана
+          </div>
+        )}
       </motion.div>
 
-      {/* Легенда карты */}
+      {/* Инструкция */}
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="absolute bottom-6 right-6 bg-gradient-to-br from-black/90 to-black/80 backdrop-blur-md p-4 rounded-xl border border-cyan-500/30 max-w-xs z-10"
+        className="absolute bottom-4 left-4 bg-black/80 backdrop-blur-md p-3 rounded-lg border border-cyan-500/30 max-w-xs text-xs z-10"
       >
-        <h3 className="text-sm font-bold text-cyan-300 mb-2">🗺️ Легенда</h3>
-        <div className="text-xs text-gray-300 space-y-2">
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-gradient-to-r from-cyan-600 to-green-600 border border-cyan-300"></div>
-            <span>Активная станция</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-10 h-0.5 border-t-2 border-dashed border-green-500/50"></div>
-            <span>Радиус очистки (0.8 км)</span>
-          </div>
-          <div className="text-cyan-400 text-xs mt-2">
-            Нажмите на станцию для деталей
-          </div>
-        </div>
+        <h4 className="text-cyan-300 font-bold mb-2">🗺️ Как использовать</h4>
+        <ul className="text-gray-300 space-y-1">
+          <li>📍 Нажмите на станцию для получения информации</li>
+          <li>💚 Зеленые круги - радиус очистки воздуха (0.8 км)</li>
+          <li>🔵 Синий маркер - ваша локация (если разрешена)</li>
+          <li>⚙️ Используйте zoom для приближения/отдаления</li>
+        </ul>
       </motion.div>
     </div>
   );
