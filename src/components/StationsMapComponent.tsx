@@ -1,8 +1,7 @@
-import { MapContainer, TileLayer, Marker, Circle, Popup, useMap } from "react-leaflet";
-import { useState, useEffect, useRef } from "react";
-import { LatLngExpression } from "leaflet";
-import L from "leaflet";
+import { useEffect, useRef, useState } from "react";
+import L, { LatLngExpression, Map as LeafletMap } from "leaflet";
 import { motion } from "framer-motion";
+import "leaflet/dist/leaflet.css";
 
 interface Station {
   id: number;
@@ -63,68 +62,17 @@ const demoStations: Station[] = [
   },
 ];
 
-// Радиус очистки воздуха в км
 const PURIFICATION_RADIUS = 0.8;
-
-// Казахстан координаты (центр)
 const KAZAKHSTAN_CENTER: LatLngExpression = [48.0196, 66.9237];
 
-// Создаем кастомные иконки
-const createStationIcon = () => {
-  return L.divIcon({
-    html: `
-      <div class="flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-r from-cyan-600 to-green-600 border-2 border-cyan-300 shadow-lg shadow-cyan-500/50 relative">
-        <div class="text-white text-lg font-bold">📍</div>
-        <div class="absolute inset-0 rounded-full border-2 border-cyan-400 animate-ping opacity-75"></div>
-      </div>
-    `,
-    className: "custom-marker",
-    iconSize: [40, 40],
-    iconAnchor: [20, 40],
-    popupAnchor: [0, -40],
+// Исправляем иконки Leaflet по умолчанию
+const fixLeafletIcons = () => {
+  delete (L.Icon.Default.prototype as any)._getIconUrl;
+  L.Icon.Default.mergeOptions({
+    iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png",
+    iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png",
+    shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
   });
-};
-
-const createUserIcon = () => {
-  return L.divIcon({
-    html: `
-      <div class="flex items-center justify-center w-8 h-8 rounded-full bg-blue-600 border-2 border-blue-300 shadow-lg shadow-blue-500/50">
-        <div class="text-white text-sm font-bold">📍</div>
-      </div>
-    `,
-    className: "user-marker",
-    iconSize: [32, 32],
-    iconAnchor: [16, 32],
-    popupAnchor: [0, -32],
-  });
-};
-
-// Компонент для управления геолокацией
-const LocationControl = ({ onLocationFound }: { onLocationFound: (lat: number, lng: number) => void }) => {
-  const map = useMap();
-  const [hasLocation, setHasLocation] = useState(false);
-
-  useEffect(() => {
-    // Запрашиваем геолокацию
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const { latitude, longitude } = position.coords;
-          onLocationFound(latitude, longitude);
-          setHasLocation(true);
-          // Центрируем на пользователя
-          map.setView([latitude, longitude], 12);
-        },
-        (error) => {
-          console.log("Геолокация отклонена или недоступна:", error);
-          // Если геолокация недоступна, показываем Казахстан
-          map.setView(KAZAKHSTAN_CENTER, 5);
-        }
-      );
-    }
-  }, [map, onLocationFound]);
-
-  return null;
 };
 
 const StationsMapComponent = ({
@@ -132,118 +80,168 @@ const StationsMapComponent = ({
   onAnalyzeClick,
   onPredictClick,
 }: StationsMapComponentProps) => {
+  const mapContainer = useRef<HTMLDivElement>(null);
+  const map = useRef<LeafletMap | null>(null);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
-  const [hasLocationAccess, setHasLocationAccess] = useState(false);
-  const mapRef = useRef(null);
+  const [mapInitialized, setMapInitialized] = useState(false);
 
-  const handleLocationFound = (lat: number, lng: number) => {
-    setUserLocation({ lat, lng });
-    setHasLocationAccess(true);
-  };
+  useEffect(() => {
+    if (!mapContainer.current || mapInitialized) return;
 
-  // Начальный центр карты - Казахстан если нет доступа, иначе будет установлено в LocationControl
-  const mapCenter = userLocation ? [userLocation.lat, userLocation.lng] : KAZAKHSTAN_CENTER;
-  const mapZoom = userLocation ? 12 : 5;
+    // Исправляем иконки Leaflet
+    fixLeafletIcons();
+
+    // Инициализируем карту
+    const initialCenter = KAZAKHSTAN_CENTER;
+    const initialZoom = 5;
+
+    try {
+      map.current = L.map(mapContainer.current, {
+        center: initialCenter,
+        zoom: initialZoom,
+        zoomControl: true,
+        attributionControl: true,
+      });
+
+      // Добавляем tile layer
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: '&copy; OpenStreetMap contributors',
+        maxZoom: 19,
+        opacity: 0.8,
+      }).addTo(map.current);
+
+      setMapInitialized(true);
+
+      // Запрашиваем геолокацию
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const { latitude, longitude } = position.coords;
+            setUserLocation({ lat: latitude, lng: longitude });
+            if (map.current) {
+              map.current.setView([latitude, longitude], 12);
+
+              // Добавляем маркер пользователя
+              L.marker([latitude, longitude], {
+                icon: L.icon({
+                  iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png",
+                  shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
+                  iconSize: [25, 41],
+                  iconAnchor: [12, 41],
+                  popupAnchor: [1, -34],
+                  shadowSize: [41, 41],
+                }),
+              })
+                .bindPopup(
+                  `<div style="background: black; color: white; padding: 8px; border: 1px solid #00d4ff; border-radius: 4px;">
+                    <h4 style="color: #00d4ff; margin: 0 0 4px 0; font-weight: bold;">Ваша локация</h4>
+                    <p style="margin: 0; font-size: 12px;">
+                      ${latitude.toFixed(4)}°N, ${longitude.toFixed(4)}°E
+                    </p>
+                  </div>`
+                )
+                .addTo(map.current);
+            }
+          },
+          () => {
+            console.log("Геолокация отклонена или недоступна");
+          }
+        );
+      }
+    } catch (error) {
+      console.error("Ошибка инициализации карты:", error);
+    }
+
+    return () => {
+      if (map.current) {
+        map.current.remove();
+        map.current = null;
+      }
+    };
+  }, [mapInitialized]);
+
+  // Добавляем станции на карту когда она загружена
+  useEffect(() => {
+    if (!map.current || !mapInitialized) return;
+
+    demoStations.forEach((station) => {
+      // Добавляем круг радиуса
+      L.circle([station.latitude, station.longitude], {
+        radius: PURIFICATION_RADIUS * 1000,
+        color: "hsl(153 100% 50% / 0.5)",
+        weight: 2,
+        opacity: 0.4,
+        fillColor: "hsl(153 100% 50%)",
+        fillOpacity: 0.1,
+        dashArray: "5, 5",
+      }).addTo(map.current!);
+
+      // Добавляем маркер станции
+      const markerIcon = L.icon({
+        iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png",
+        shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
+        iconSize: [25, 41],
+        iconAnchor: [12, 41],
+        popupAnchor: [1, -34],
+        shadowSize: [41, 41],
+      });
+
+      const marker = L.marker([station.latitude, station.longitude], {
+        icon: markerIcon,
+      });
+
+      const popupContent = `
+        <div style="background: rgba(0,0,0,0.9); color: white; padding: 12px; border: 1px solid #00d4ff; border-radius: 6px; min-width: 200px;">
+          <h3 style="color: #00d4ff; margin: 0 0 8px 0; font-weight: bold; font-size: 14px;">${station.name}</h3>
+          <div style="font-size: 12px; margin: 0 0 10px 0; line-height: 1.6;">
+            <p style="margin: 2px 0;">🌡️ Температура: ${station.temperature}°C</p>
+            <p style="margin: 2px 0;">💧 Влажность: ${station.humidity}%</p>
+            <p style="margin: 2px 0;">🌱 CO2: ${station.co2_ppm} ppm</p>
+            <p style="margin: 2px 0;">⚗️ pH: ${station.ph}</p>
+            <p style="margin: 2px 0;">☀️ Свет: ${station.light_intensity} люкс</p>
+            <p style="margin: 2px 0;">📍 Радиус: ${PURIFICATION_RADIUS} км</p>
+          </div>
+          <div style="display: flex; gap: 6px;">
+            <button onclick="window.analyzeStation(${station.id})" style="flex: 1; background: #00d4ff; color: black; border: none; padding: 4px 8px; border-radius: 3px; font-size: 11px; font-weight: bold; cursor: pointer;">📊 Анализ</button>
+            <button onclick="window.predictStation(${station.id})" style="flex: 1; background: #00ff88; color: black; border: none; padding: 4px 8px; border-radius: 3px; font-size: 11px; font-weight: bold; cursor: pointer;">🔮 Прогноз</button>
+          </div>
+        </div>
+      `;
+
+      marker.bindPopup(popupContent);
+      marker.addTo(map.current!);
+
+      // Добавляем глобальные функции для кнопок
+      (window as any).analyzeStation = (id: number) => {
+        const station = demoStations.find((s) => s.id === id);
+        if (station) {
+          onAnalyzeClick(station);
+          onStationSelect(station);
+        }
+      };
+
+      (window as any).predictStation = (id: number) => {
+        const station = demoStations.find((s) => s.id === id);
+        if (station) {
+          onPredictClick(station);
+          onStationSelect(station);
+        }
+      };
+    });
+  }, [mapInitialized, onStationSelect, onAnalyzeClick, onPredictClick]);
 
   return (
-    <div className="relative w-full h-full rounded-2xl border border-cyan-500/30 overflow-hidden shadow-2xl">
-      {/* Карта */}
-      <MapContainer
-        center={mapCenter as LatLngExpression}
-        zoom={mapZoom}
-        style={{ width: "100%", height: "100%", zIndex: 0 }}
+    <div className="relative w-full h-full rounded-2xl border border-cyan-500/30 overflow-hidden shadow-2xl bg-black">
+      {/* Контейнер карты */}
+      <div
+        ref={mapContainer}
+        style={{
+          width: "100%",
+          height: "100%",
+          zIndex: 1,
+        }}
         className="bg-black"
-        ref={mapRef}
-      >
-        {/* Слой карты OSM */}
-        <TileLayer
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          attribution='&copy; OpenStreetMap contributors'
-          className="opacity-75"
-        />
-
-        {/* Управление геолокацией */}
-        <LocationControl onLocationFound={handleLocationFound} />
-
-        {/* Маркер пользователя (если разрешена геолокация) */}
-        {userLocation && (
-          <Marker
-            position={[userLocation.lat, userLocation.lng]}
-            icon={createUserIcon()}
-          >
-            <Popup>
-              <div className="bg-black/90 text-white p-2 rounded-lg border border-blue-500/30">
-                <h4 className="font-bold text-blue-300">Ваша локация</h4>
-                <p className="text-xs text-gray-300">
-                  {userLocation.lat.toFixed(4)}°N, {userLocation.lng.toFixed(4)}°E
-                </p>
-              </div>
-            </Popup>
-          </Marker>
-        )}
-
-        {/* Станции и их радиусы очистки */}
-        {demoStations.map((station) => (
-          <div key={station.id}>
-            {/* Круг радиуса очистки воздуха */}
-            <Circle
-              center={[station.latitude, station.longitude]}
-              radius={PURIFICATION_RADIUS * 1000}
-              pathOptions={{
-                color: "hsl(153 100% 50% / 0.5)",
-                weight: 2,
-                opacity: 0.4,
-                fillColor: "hsl(153 100% 50%)",
-                fillOpacity: 0.1,
-                dashArray: "5, 5",
-              }}
-            />
-
-            {/* Маркер станции */}
-            <Marker
-              position={[station.latitude, station.longitude]}
-              icon={createStationIcon()}
-              eventHandlers={{
-                click: () => {
-                  onStationSelect(station);
-                },
-              }}
-            >
-              <Popup>
-                <div className="bg-black/90 text-white p-3 rounded-lg border border-cyan-500/30 min-w-max">
-                  <h3 className="font-bold text-cyan-300 mb-2 text-sm">{station.name}</h3>
-                  <div className="text-xs space-y-1 mb-3">
-                    <p>🌡️ Температура: {station.temperature}°C</p>
-                    <p>💧 Влажность: {station.humidity}%</p>
-                    <p>🌱 CO2: {station.co2_ppm} ppm</p>
-                    <p>⚗️ pH: {station.ph}</p>
-                    <p>☀️ Свет: {station.light_intensity} люкс</p>
-                    <p>📍 Радиус: {PURIFICATION_RADIUS} км</p>
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => {
-                        onAnalyzeClick(station);
-                      }}
-                      className="flex-1 bg-cyan-600 hover:bg-cyan-700 text-white px-2 py-1 rounded text-xs font-bold transition-colors"
-                    >
-                      📊 Анализ
-                    </button>
-                    <button
-                      onClick={() => {
-                        onPredictClick(station);
-                      }}
-                      className="flex-1 bg-green-600 hover:bg-green-700 text-white px-2 py-1 rounded text-xs font-bold transition-colors"
-                    >
-                      🔮 Прогноз
-                    </button>
-                  </div>
-                </div>
-              </Popup>
-            </Marker>
-          </div>
-        ))}
-      </MapContainer>
+      />
 
       {/* Статус геолокации */}
       <motion.div
@@ -252,13 +250,9 @@ const StationsMapComponent = ({
         className="absolute top-4 left-4 bg-black/80 backdrop-blur-md p-2 rounded-lg border border-cyan-500/30 text-xs z-10"
       >
         {userLocation ? (
-          <div className="text-green-400">
-            ✅ Геолокация включена
-          </div>
+          <div className="text-green-400">✅ Геолокация включена</div>
         ) : (
-          <div className="text-yellow-400">
-            📍 Геолокация отключена - показана вся карта Казахстана
-          </div>
+          <div className="text-yellow-400">📍 Геолокация отключена - показана вся карта Казахстана</div>
         )}
       </motion.div>
 
@@ -270,10 +264,10 @@ const StationsMapComponent = ({
       >
         <h4 className="text-cyan-300 font-bold mb-2">🗺️ Как использовать</h4>
         <ul className="text-gray-300 space-y-1">
-          <li>📍 Нажмите на станцию для получения информации</li>
-          <li>💚 Зеленые круги - радиус очистки воздуха (0.8 км)</li>
-          <li>🔵 Синий маркер - ваша локация (если разрешена)</li>
-          <li>⚙️ Используйте zoom для приближения/отдаления</li>
+          <li>📍 Нажмите на станцию для информации</li>
+          <li>💚 Зеленые круги - радиус очистки (0.8 км)</li>
+          <li>🔵 Синий маркер - ваша локация</li>
+          <li>⚙️ Zoom для приближения/отдаления</li>
         </ul>
       </motion.div>
     </div>
