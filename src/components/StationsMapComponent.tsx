@@ -19,8 +19,6 @@ interface Station {
 
 interface StationsMapComponentProps {
   onStationSelect?: (station: Station) => void;
-  onAnalyzeClick?: (station: Station) => void;
-  onPredictClick?: (station: Station) => void;
 }
 
 const demoStations: Station[] = [
@@ -65,41 +63,43 @@ const demoStations: Station[] = [
 const PURIFICATION_RADIUS = 0.8;
 const KAZAKHSTAN_CENTER: [number, number] = [48.0196, 66.9237];
 
+// Зелёный маркер — демо станции
 const stationIcon = L.divIcon({
-  html: `<div style="
-    width: 24px; height: 24px;
-    background: #00ff88;
-    border: 3px solid white;
-    border-radius: 50%;
-    box-shadow: 0 0 12px #00ff88, 0 0 6px rgba(0,0,0,0.8);
-    cursor: pointer;
-  "></div>`,
+  html: `<div style="width:24px;height:24px;background:#00ff88;border:3px solid white;border-radius:50%;box-shadow:0 0 12px #00ff88,0 0 6px rgba(0,0,0,0.8);cursor:pointer;"></div>`,
   iconSize: [24, 24],
   iconAnchor: [12, 12],
   className: "",
 });
 
+// Оранжевый маркер — реальная ESP32 станция
+const esp32Icon = L.divIcon({
+  html: `<div style="width:28px;height:28px;background:#ff8c00;border:3px solid white;border-radius:50%;box-shadow:0 0 16px #ff8c00,0 0 8px rgba(0,0,0,0.8);cursor:pointer;position:relative;">
+    <div style="position:absolute;top:-8px;left:50%;transform:translateX(-50%);background:#ff8c00;color:white;font-size:9px;font-weight:bold;padding:1px 4px;border-radius:4px;white-space:nowrap;">LIVE</div>
+  </div>`,
+  iconSize: [28, 28],
+  iconAnchor: [14, 14],
+  className: "",
+});
+
+// Синий маркер — позиция пользователя
 const userIcon = L.divIcon({
-  html: `<div style="
-    width: 18px; height: 18px;
-    background: #00d4ff;
-    border: 3px solid white;
-    border-radius: 50%;
-    box-shadow: 0 0 12px #00d4ff, 0 0 6px rgba(0,0,0,0.8);
-  "></div>`,
+  html: `<div style="width:18px;height:18px;background:#00d4ff;border:3px solid white;border-radius:50%;box-shadow:0 0 12px #00d4ff,0 0 6px rgba(0,0,0,0.8);"></div>`,
   iconSize: [18, 18],
   iconAnchor: [9, 9],
   className: "",
 });
 
-const StationsMapComponent = ({
-  onStationSelect,
-}: StationsMapComponentProps) => {
+const StationsMapComponent = ({ onStationSelect }: StationsMapComponentProps) => {
   const mapRef = useRef<HTMLDivElement>(null);
   const leafletMap = useRef<L.Map | null>(null);
+  const esp32MarkerRef = useRef<L.Marker | null>(null);
+  const esp32CircleRef = useRef<L.Circle | null>(null);
+
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [selectedStation, setSelectedStation] = useState<Station | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const [esp32Station, setEsp32Station] = useState<Station | null>(null);
+  const [esp32Online, setEsp32Online] = useState(false);
 
   const openStation = (station: Station) => {
     setSelectedStation(station);
@@ -107,6 +107,60 @@ const StationsMapComponent = ({
     onStationSelect?.(station);
   };
 
+  // Загрузка данных с ESP32
+  const fetchEsp32Data = async () => {
+    try {
+      const res = await fetch("/api/sensor-data");
+      if (!res.ok) return;
+      const data = await res.json();
+
+      // Проверяем что это реальные данные (не демо с координатами Москвы)
+      const isReal = data.latitude !== 55.7558 && data.latitude !== 0 && data.longitude !== 0;
+
+      const station: Station = {
+        id: 4,
+        name: data.station_name || "GreenPulse ESP32 (Live)",
+        latitude: data.latitude,
+        longitude: data.longitude,
+        temperature: data.temperature,
+        humidity: data.humidity,
+        co2_ppm: data.co2_ppm,
+        ph: data.ph,
+        light_intensity: data.light_intensity,
+        status: "active",
+      };
+
+      setEsp32Station(station);
+      setEsp32Online(isReal);
+
+      // Обновляем маркер на карте если GPS валидный
+      if (isReal && leafletMap.current) {
+        // Удаляем старый маркер и круг
+        if (esp32MarkerRef.current) esp32MarkerRef.current.remove();
+        if (esp32CircleRef.current) esp32CircleRef.current.remove();
+
+        // Круг радиуса очистки
+        esp32CircleRef.current = L.circle([data.latitude, data.longitude], {
+          radius: PURIFICATION_RADIUS * 1000,
+          color: "#ff8c00",
+          weight: 2,
+          opacity: 0.6,
+          fillColor: "#ff8c00",
+          fillOpacity: 0.08,
+          dashArray: "6, 4",
+        }).addTo(leafletMap.current);
+
+        // Маркер
+        esp32MarkerRef.current = L.marker([data.latitude, data.longitude], { icon: esp32Icon })
+          .on("click", () => openStation(station))
+          .addTo(leafletMap.current);
+      }
+    } catch (e) {
+      console.log("ESP32 недоступен:", e);
+    }
+  };
+
+  // Инициализация карты
   useEffect(() => {
     if (!mapRef.current || leafletMap.current) return;
 
@@ -118,15 +172,13 @@ const StationsMapComponent = ({
 
     leafletMap.current = map;
 
-    // CartoDB Dark тайлы
     L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
       attribution: "&copy; OpenStreetMap contributors &copy; CartoDB",
       maxZoom: 19,
     }).addTo(map);
 
-    // Добавляем станции
+    // Демо станции
     demoStations.forEach((station) => {
-      // Круг радиуса очистки
       L.circle([station.latitude, station.longitude], {
         radius: PURIFICATION_RADIUS * 1000,
         color: "#00ff88",
@@ -137,13 +189,12 @@ const StationsMapComponent = ({
         dashArray: "6, 4",
       }).addTo(map);
 
-      // Маркер — по клику открываем React-модалку
       L.marker([station.latitude, station.longitude], { icon: stationIcon })
         .on("click", () => openStation(station))
         .addTo(map);
     });
 
-    // Геолокация
+    // Геолокация пользователя
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         ({ coords }) => {
@@ -156,9 +207,7 @@ const StationsMapComponent = ({
             </div>`)
             .addTo(map);
         },
-        () => {
-          console.log("Геолокация не разрешена");
-        }
+        () => console.log("Геолокация не разрешена")
       );
     }
 
@@ -168,45 +217,87 @@ const StationsMapComponent = ({
     };
   }, []);
 
+  // Загружаем ESP32 данные сразу и затем каждые 30 сек
+  useEffect(() => {
+    fetchEsp32Data();
+    const interval = setInterval(fetchEsp32Data, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <>
-      <div
-        className="relative w-full rounded-2xl border border-cyan-500/30 overflow-hidden shadow-2xl"
-        style={{ height: "600px" }}
-      >
-        {/* Контейнер карты */}
+      <div className="relative w-full rounded-2xl border border-cyan-500/30 overflow-hidden shadow-2xl" style={{ height: "600px" }}>
         <div ref={mapRef} style={{ width: "100%", height: "100%" }} />
 
         {/* Статус геолокации */}
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="absolute top-4 left-4 bg-black/80 backdrop-blur-md p-2 rounded-lg border border-cyan-500/30 text-xs z-[1000]"
+          className="absolute top-4 left-4 bg-black/80 backdrop-blur-md p-2 rounded-lg border border-cyan-500/30 text-xs z-[1000] space-y-1"
         >
           {userLocation ? (
-            <span className="text-green-400">✅ Геолокация включена</span>
+            <div className="text-green-400">✅ Геолокация включена</div>
           ) : (
-            <span className="text-yellow-400">📍 Показана карта Казахстана</span>
+            <div className="text-yellow-400">📍 Показана карта Казахстана</div>
+          )}
+          {esp32Online ? (
+            <div className="text-orange-400 flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-orange-400 animate-pulse inline-block" />
+              ESP32 онлайн
+            </div>
+          ) : (
+            <div className="text-gray-500">⚫ ESP32 офлайн</div>
           )}
         </motion.div>
 
-        {/* Подсказка */}
+        {/* Легенда */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           className="absolute bottom-4 left-4 bg-black/80 backdrop-blur-md p-3 rounded-lg border border-cyan-500/30 max-w-xs text-xs z-[1000]"
         >
-          <h4 className="text-cyan-300 font-bold mb-2">🗺️ Как использовать</h4>
+          <h4 className="text-cyan-300 font-bold mb-2">🗺️ Легенда</h4>
           <ul className="text-gray-300 space-y-1">
-            <li>🟢 Нажмите на зелёный маркер — откроется станция</li>
-            <li>💚 Зелёные круги — радиус очистки (0.8 км)</li>
-            <li>🔵 Синий маркер — ваша локация</li>
-            <li>⚙️ Zoom для приближения/отдаления</li>
+            <li className="flex items-center gap-2">
+              <span className="w-3 h-3 rounded-full bg-green-400 inline-block shadow-[0_0_6px_#00ff88]" /> Демо станция
+            </li>
+            <li className="flex items-center gap-2">
+              <span className="w-3 h-3 rounded-full bg-orange-400 inline-block shadow-[0_0_6px_#ff8c00]" /> ESP32 Live станция
+            </li>
+            <li className="flex items-center gap-2">
+              <span className="w-3 h-3 rounded-full bg-cyan-400 inline-block shadow-[0_0_6px_#00d4ff]" /> Ваша локация
+            </li>
+            <li className="text-gray-400 mt-1">🖱️ Клик на маркер — подробности</li>
           </ul>
         </motion.div>
+
+        {/* Панель ESP32 данных (если онлайн) */}
+        {esp32Station && esp32Online && (
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="absolute top-4 right-4 bg-black/80 backdrop-blur-md p-3 rounded-lg border border-orange-500/40 text-xs z-[1000] min-w-[160px]"
+          >
+            <div className="text-orange-400 font-bold mb-2 flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-orange-400 animate-pulse inline-block" />
+              ESP32 Live
+            </div>
+            <div className="text-gray-300 space-y-1">
+              <div>🌡️ {esp32Station.temperature}°C</div>
+              <div>💧 {esp32Station.humidity}%</div>
+              <div>🌱 CO2: {esp32Station.co2_ppm} ppm</div>
+              <div>⚗️ pH: {esp32Station.ph}</div>
+            </div>
+            <button
+              onClick={() => openStation(esp32Station)}
+              className="mt-2 w-full text-center text-orange-300 border border-orange-500/40 rounded py-1 hover:bg-orange-500/10 transition-colors"
+            >
+              Подробнее →
+            </button>
+          </motion.div>
+        )}
       </div>
 
-      {/* React-модалка станции */}
       <StationModal
         station={selectedStation}
         isOpen={modalOpen}
