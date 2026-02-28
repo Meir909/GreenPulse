@@ -2,7 +2,6 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import Navbar from "@/components/Navbar";
 import StationsMapComponent from "@/components/StationsMapComponent";
-import StationsMap from "@/components/StationsMap";
 import AIAnalysisPanel from "@/components/AIAnalysisPanel";
 import ChatbotFloatingButton from "@/components/ChatbotFloatingButton";
 
