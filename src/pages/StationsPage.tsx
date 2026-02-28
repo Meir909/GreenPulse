@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import Navbar from "@/components/Navbar";
+import StationsMapComponent from "@/components/StationsMapComponent";
 import StationsMap from "@/components/StationsMap";
 import AIAnalysisPanel from "@/components/AIAnalysisPanel";
 import ChatbotFloatingButton from "@/components/ChatbotFloatingButton";
@@ -239,33 +240,49 @@ const StationsPage = () => {
 
       {/* Основной контент */}
       <main className="relative pt-32 pb-24 px-4">
-        <div className="container mx-auto max-w-7xl">
-          {/* Заголовок */}
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="text-center mb-16"
-          >
-            <p className="text-sm uppercase tracking-widest text-primary mb-3 font-mono-data">
-              Сеть станций
-            </p>
-            <h1 className="font-headline text-4xl md:text-5xl font-bold text-foreground mb-4">
-              GreenPulse <span className="text-gradient">Станции</span>
-            </h1>
-            <p className="text-gray-400 max-w-2xl mx-auto">
-              Мониторьте все ваши станции на одной карте. Анализируйте данные
-              с помощью ИИ и получайте рекомендации в реальном времени.
-            </p>
-          </motion.div>
+        {/* Заголовок */}
+        <motion.div
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          className="text-center mb-8"
+        >
+          <p className="text-sm uppercase tracking-widest text-primary mb-3 font-mono-data">
+            Сеть станций
+          </p>
+          <h1 className="font-headline text-4xl md:text-5xl font-bold text-foreground mb-4">
+            GreenPulse <span className="text-gradient">Карта Станций</span>
+          </h1>
+          <p className="text-gray-400 max-w-2xl mx-auto">
+            Мониторьте все ваши станции на интерактивной карте. Нажмите на маркер для просмотра информации, анализа и прогноза.
+          </p>
+        </motion.div>
 
-          {/* Сетка карт станций */}
+        {/* Интерактивная карта */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.2 }}
+          className="container mx-auto max-w-7xl mb-16 h-[600px] md:h-[700px]"
+        >
+          <StationsMapComponent
+            onStationSelect={setSelectedStation}
+            onAnalyzeClick={handleAnalyzeClick}
+            onPredictClick={handlePredictClick}
+          />
+        </motion.div>
+
+        {/* Сетка карт станций */}
+        <div className="container mx-auto max-w-7xl">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
+            transition={{ duration: 0.6, delay: 0.3 }}
             className="mb-12"
           >
+            <h2 className="text-2xl font-bold text-foreground mb-6 flex items-center gap-2">
+              📊 Станции в формате карточек
+            </h2>
             <StationsMap
               onAnalyzeClick={handleAnalyzeClick}
               onPredictClick={handlePredictClick}
@@ -277,7 +294,7 @@ const StationsPage = () => {
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.3 }}
+              transition={{ duration: 0.6, delay: 0.4 }}
               className="space-y-6"
             >
               {/* Кнопки вкладок */}
