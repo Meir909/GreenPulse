@@ -1,40 +1,44 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 
-interface StatCard {
-  label: string;
-  value: number;
-  unit: string;
-  prefix?: string;
-  decimals: number;
-  delta: () => number;
-}
-
-const stats: StatCard[] = [
-  { label: "Температура", value: 24.3, unit: "°C", decimals: 1, delta: () => (Math.random() - 0.5) * 0.4 },
-  { label: "pH деңгейі", value: 7.2, unit: "", decimals: 1, delta: () => Math.random() * 0.05 },
-  { label: "CO₂ азайды", value: -18, unit: "%", decimals: 0, delta: () => -(Math.random() * 0.3) },
-  { label: "Биомасса", value: 0.55, unit: "OD", decimals: 2, delta: () => Math.random() * 0.01 },
-];
-
 const HeroSection = () => {
-  const [values, setValues] = useState(stats.map((s) => s.value));
+  const [temperature, setTemperature] = useState<number | null>(null);
+  const [ph, setPh] = useState<number | null>(null);
+  const [co2, setCo2] = useState<number | null>(null);
+  const [humidity, setHumidity] = useState<number | null>(null);
+  const [offline, setOffline] = useState(false);
+
+  const fetchData = async () => {
+    try {
+      const res = await fetch("/api/sensor-data");
+      const json = await res.json();
+      if (json.status === "offline" || !json.data) {
+        setOffline(true);
+        return;
+      }
+      const d = json.data;
+      setTemperature(d.temperature);
+      setPh(d.ph);
+      setCo2(d.co2_ppm);
+      setHumidity(d.humidity);
+      setOffline(false);
+    } catch {
+      setOffline(true);
+    }
+  };
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setValues((prev) =>
-        prev.map((v, i) => {
-          const newVal = v + stats[i].delta();
-          // Keep within reasonable bounds
-          if (i === 0) return Math.max(22, Math.min(26, newVal));
-          if (i === 1) return Math.max(6.8, Math.min(7.8, newVal));
-          if (i === 2) return Math.min(-10, Math.max(-25, newVal));
-          return Math.max(0.4, Math.min(0.8, newVal));
-        })
-      );
-    }, 3000);
+    fetchData();
+    const interval = setInterval(fetchData, 10000);
     return () => clearInterval(interval);
   }, []);
+
+  const cards = [
+    { label: "Температура", value: temperature !== null ? `${temperature.toFixed(1)}°C` : "—", live: true },
+    { label: "pH деңгейі",  value: ph !== null ? ph.toFixed(1) : "—" },
+    { label: "CO₂ (ppm)",   value: co2 !== null ? String(co2) : "—" },
+    { label: "Ылғалдылық",  value: humidity !== null ? `${humidity.toFixed(0)}%` : "—" },
+  ];
 
   return (
     <section className="relative min-h-screen flex flex-col items-center justify-center px-4 overflow-hidden">
@@ -63,22 +67,22 @@ const HeroSection = () => {
           transition={{ duration: 0.8, delay: 0.3 }}
           className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto"
         >
-          {stats.map((stat, i) => (
+          {cards.map((card, i) => (
             <div
-              key={stat.label}
+              key={card.label}
               className="glass rounded-xl p-4 sm:p-5 neon-border relative group hover:scale-105 transition-transform duration-300"
             >
               {i === 0 && (
                 <div className="absolute top-2 right-2 flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-primary animate-pulse-glow" />
-                  <span className="text-[10px] font-mono text-primary uppercase tracking-wider">Live</span>
+                  <span className={`w-2 h-2 rounded-full ${offline ? "bg-gray-500" : "bg-primary animate-pulse-glow"}`} />
+                  <span className={`text-[10px] font-mono uppercase tracking-wider ${offline ? "text-gray-500" : "text-primary"}`}>
+                    {offline ? "Offline" : "Live"}
+                  </span>
                 </div>
               )}
-              <p className="text-xs text-muted-foreground mb-1">{stat.label}</p>
+              <p className="text-xs text-muted-foreground mb-1">{card.label}</p>
               <p className="font-mono-data text-2xl sm:text-3xl font-bold text-primary transition-all duration-700">
-                {stat.prefix}
-                {values[i].toFixed(stat.decimals)}
-                <span className="text-sm text-muted-foreground ml-1">{stat.unit}</span>
+                {card.value}
               </p>
             </div>
           ))}
