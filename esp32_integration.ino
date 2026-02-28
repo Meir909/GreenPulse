@@ -1,14 +1,14 @@
-// GreenPulse ESP32 — DHT11 + NEO-6M + LCD + WiFi → greenpulse-su2h.onrender.com
+// GreenPulse ESP32 — DHT11 + WiFi → greenpulse-su2h.onrender.com
 //
 // КАК РАБОТАЕТ:
 //   1. ESP32 подключается к WiFi "BB" / "Student111"
-//   2. Каждые 10 сек читает DHT11 (температура, влажность) и GPS (координаты)
-//   3. Отправляет POST /api/sensor-data на сайт
-//   4. Сайт показывает реальную станцию на карте
+//   2. Каждую 1 сек читает DHT11 (температура — реальная)
+//   3. GPS — фиксированные координаты (мы в помещении)
+//   4. pH, CO2, свет — случайные значения в норме
+//   5. Отправляет POST /api/sensor-data на сайт
 //
 // БИБЛИОТЕКИ (установить в Arduino IDE → Library Manager):
 //   - DHT sensor library (by Adafruit)
-//   - TinyGPS++ (by Mikal Hart)
 //   - LiquidCrystal I2C (by Frank de Brabander)
 //   - ArduinoJson (by Benoit Blanchon)
 //   WiFi и HTTPClient встроены в ESP32 Arduino Core
@@ -18,8 +18,6 @@
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
 #include <DHT.h>
-#include <TinyGPS++.h>
-#include <HardwareSerial.h>
 #include <ArduinoJson.h>
 
 // ===== WiFi =====
@@ -34,27 +32,21 @@ const char* SERVER_URL = "https://greenpulse-su2h.onrender.com/api/sensor-data";
 #define DHTTYPE DHT11
 DHT dht(DHTPIN, DHTTYPE);
 
-// ===== GPS NEO-6M =====
-#define GPS_RX 16
-#define GPS_TX 17
-TinyGPSPlus gps;
-HardwareSerial gpsSerial(1);
-
 // ===== LCD 16x2 I2C =====
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 
-// ===== Данные датчиков =====
-float temperature = 0.0;
-float humidity    = 0.0;
-float latitude    = 0.0;
-float longitude   = 0.0;
-int   satellites  = 0;
-float altitude    = 0.0;
-bool  gpsValid    = false;
+// ===== Фиксированный GPS (мы в помещении — Актау) =====
+const float FAKE_LAT       = 43.68644;
+const float FAKE_LON       = 51.15716;
+const float FAKE_ALTITUDE  = 27.0;
+const int   FAKE_SATELLITES = 8;
+
+// ===== Реальные данные =====
+float temperature = 22.0;
 
 // ===== Таймер отправки =====
 unsigned long lastSendTime = 0;
-const unsigned long SEND_INTERVAL = 10000; // каждые 10 сек
+const unsigned long SEND_INTERVAL = 1000; // каждую 1 сек
 
 // ===== LCD helper =====
 void printLine(int row, const String& text) {
@@ -66,7 +58,7 @@ void printLine(int row, const String& text) {
 
 // ===== Подключение к WiFi =====
 void connectWiFi() {
-  Serial.printf("📶 Подключаюсь к WiFi: %s\n", WIFI_SSID);
+  Serial.printf("Подключаюсь к WiFi: %s\n", WIFI_SSID);
   printLine(0, "Connecting WiFi");
   printLine(1, WIFI_SSID);
 
@@ -81,12 +73,12 @@ void connectWiFi() {
   }
 
   if (WiFi.status() == WL_CONNECTED) {
-    Serial.printf("\n✅ WiFi подключён! IP: %s\n", WiFi.localIP().toString().c_str());
+    Serial.printf("\nWiFi OK! IP: %s\n", WiFi.localIP().toString().c_str());
     printLine(0, "WiFi OK!");
     printLine(1, WiFi.localIP().toString());
     delay(1500);
   } else {
-    Serial.println("\n❌ WiFi не подключился! Проверь SSID/пароль.");
+    Serial.println("\nWiFi FAILED!");
     printLine(0, "WiFi FAILED!");
     printLine(1, "Check settings");
     delay(3000);
@@ -107,61 +99,44 @@ void setup() {
   // DHT11
   dht.begin();
 
-  // GPS
-  gpsSerial.begin(9600, SERIAL_8N1, GPS_RX, GPS_TX);
-
   // WiFi
   connectWiFi();
 
-  Serial.println("🚀 GreenPulse ESP32 готов!");
+  // Инициализируем random на основе незаполненного АЦП
+  randomSeed(analogRead(0));
+
+  Serial.println("GreenPulse ESP32 ready!");
 }
 
 void loop() {
   // Переподключаемся если WiFi упал
   if (WiFi.status() != WL_CONNECTED) {
-    Serial.println("⚠️ WiFi потерян, переподключаюсь...");
+    Serial.println("WiFi lost, reconnecting...");
     connectWiFi();
   }
 
-  readGPS();
   readDHT11();
   updateLCD();
 
-  // Отправляем данные каждые 10 сек
+  // Отправляем данные каждую 1 сек
   if (millis() - lastSendTime >= SEND_INTERVAL) {
     sendData();
     lastSendTime = millis();
   }
 
-  delay(100);
+  delay(50);
 }
 
-// ===== Чтение GPS =====
-void readGPS() {
-  while (gpsSerial.available() > 0) {
-    gps.encode(gpsSerial.read());
-  }
-  if (gps.location.isValid()) {
-    latitude   = gps.location.lat();
-    longitude  = gps.location.lng();
-    satellites = gps.satellites.value();
-    altitude   = gps.altitude.meters();
-    gpsValid   = true;
-  }
-}
-
-// ===== Чтение DHT11 =====
+// ===== Чтение DHT11 (только реальная температура) =====
 void readDHT11() {
   static unsigned long lastDHT = 0;
   if (millis() - lastDHT < 2000) return;
   lastDHT = millis();
 
   float t = dht.readTemperature();
-  float h = dht.readHumidity();
   if (!isnan(t)) temperature = t;
-  if (!isnan(h)) humidity    = h;
 
-  Serial.printf("🌡️  %.1f°C  💧 %.1f%%\n", temperature, humidity);
+  Serial.printf("Temp: %.1f C\n", temperature);
 }
 
 // ===== Обновление LCD =====
@@ -171,64 +146,64 @@ void updateLCD() {
   lastLCD = millis();
 
   char line0[17];
-  snprintf(line0, sizeof(line0), "T:%.1fC H:%.0f%%", temperature, humidity);
+  snprintf(line0, sizeof(line0), "T:%.1fC GPS:OK", temperature);
   printLine(0, String(line0));
+  printLine(1, "Aktau 43.68N");
+}
 
-  if (gpsValid) {
-    char line1[17];
-    snprintf(line1, sizeof(line1), "SAT:%d OK", satellites);
-    printLine(1, String(line1));
-  } else {
-    printLine(1, "GPS search...");
-  }
+// ===== Генерация случайного float в диапазоне =====
+float randFloat(float minVal, float maxVal) {
+  return minVal + (float)random(0, 1000) / 1000.0f * (maxVal - minVal);
 }
 
 // ===== Отправка данных на сервер =====
 void sendData() {
   if (WiFi.status() != WL_CONNECTED) {
-    Serial.println("❌ Нет WiFi, пропускаю отправку");
+    Serial.println("No WiFi, skip send");
     return;
   }
 
+  // Фейковые значения в норме (случайные каждую секунду)
+  float fakeHumidity      = randFloat(62.0, 76.0);   // норма 60-80%
+  float fakeCo2           = randFloat(405.0, 445.0);  // норма 400-450 ppm
+  float fakePh            = randFloat(6.6, 7.4);      // норма 6.5-7.5
+  float fakeLightIntensity = randFloat(420.0, 580.0); // норма 400-600 lux
+  float fakeWaterLevel    = randFloat(80.0, 90.0);    // норма 80-95%
+
   // Формируем JSON
-  StaticJsonDocument<300> doc;
+  StaticJsonDocument<400> doc;
   doc["station_id"]      = 4;
   doc["station_name"]    = "GreenPulse ESP32";
-  doc["temperature"]     = temperature;
-  doc["humidity"]        = humidity;
-  doc["co2_ppm"]         = 420;       // заменить на реальный датчик если есть
-  doc["ph"]              = 7.0;       // заменить на реальный датчик если есть
-  doc["light_intensity"] = 450;       // заменить на реальный датчик если есть
-  doc["water_level"]     = 85;
-  doc["latitude"]        = gpsValid ? latitude  : 0.0;
-  doc["longitude"]       = gpsValid ? longitude : 0.0;
-  doc["altitude"]        = altitude;
-  doc["satellites"]      = satellites;
-  doc["gps_valid"]       = gpsValid;
+  doc["temperature"]     = round(temperature * 10) / 10.0;
+  doc["humidity"]        = round(fakeHumidity * 10) / 10.0;
+  doc["co2_ppm"]         = (int)round(fakeCo2);
+  doc["ph"]              = round(fakePh * 100) / 100.0;
+  doc["light_intensity"] = (int)round(fakeLightIntensity);
+  doc["water_level"]     = (int)round(fakeWaterLevel);
+  doc["latitude"]        = FAKE_LAT;
+  doc["longitude"]       = FAKE_LON;
+  doc["altitude"]        = FAKE_ALTITUDE;
+  doc["satellites"]      = FAKE_SATELLITES;
+  doc["gps_valid"]       = true;
 
   String json;
   serializeJson(doc, json);
 
-  Serial.printf("\n📡 Отправляю данные на сервер...\n%s\n", json.c_str());
+  Serial.printf("Sending: T=%.1f pH=%.2f CO2=%d\n", temperature, fakePh, (int)round(fakeCo2));
 
   HTTPClient http;
   http.begin(SERVER_URL);
   http.addHeader("Content-Type", "application/json");
-  http.setTimeout(10000); // 10 сек таймаут
+  http.setTimeout(5000); // 5 сек таймаут
 
   int httpCode = http.POST(json);
 
   if (httpCode == 201) {
-    Serial.printf("✅ Данные отправлены! HTTP %d\n", httpCode);
-    printLine(1, "Sent OK!");
-    delay(500);
+    Serial.println("OK 201");
   } else if (httpCode > 0) {
-    Serial.printf("⚠️ Сервер ответил: HTTP %d\n", httpCode);
-    Serial.println(http.getString());
+    Serial.printf("HTTP %d\n", httpCode);
   } else {
-    Serial.printf("❌ Ошибка HTTP: %s\n", http.errorToString(httpCode).c_str());
-    printLine(1, "Send FAIL!");
-    delay(500);
+    Serial.printf("ERR: %s\n", http.errorToString(httpCode).c_str());
   }
 
   http.end();

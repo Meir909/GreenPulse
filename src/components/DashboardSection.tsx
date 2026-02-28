@@ -3,11 +3,11 @@ import { useRef, useState, useEffect } from "react";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, LineChart, Line, Tooltip } from "recharts";
 
 interface SensorData {
-  temperature: number;
-  ph: number;
-  co2_ppm: number;
-  humidity: number;
-  light_intensity: number;
+  temperature: number | null;
+  ph: number | null;
+  co2_ppm: number | null;
+  humidity: number | null;
+  light_intensity: number | null;
 }
 
 const DashboardSection = () => {
@@ -133,7 +133,7 @@ const DashboardSection = () => {
                   </svg>
                 </div>
                 <p className="font-mono-data text-4xl font-bold text-center text-primary">
-                  {sensorData ? sensorData.ph.toFixed(1) : "—"}
+                  {sensorData?.ph != null ? sensorData.ph.toFixed(1) : "—"}
                 </p>
               </motion.div>
 
@@ -146,7 +146,7 @@ const DashboardSection = () => {
               >
                 <p className="text-sm text-muted-foreground mb-2">Температура</p>
                 <p className="font-mono-data text-4xl font-bold text-primary">
-                  {sensorData ? `${sensorData.temperature.toFixed(1)}°C` : "—"}
+                  {sensorData?.temperature != null ? `${sensorData.temperature.toFixed(1)}°C` : "—"}
                 </p>
                 <p className="text-xs text-muted-foreground mt-2">Оптималды: 20-25°C</p>
               </motion.div>
@@ -216,7 +216,7 @@ const DashboardSection = () => {
                   <div>
                     <p className="text-xs text-muted-foreground mb-1">Ылғалдылық / Влажность</p>
                     <p className="font-mono-data text-3xl font-bold text-primary">
-                      {sensorData ? `${sensorData.humidity.toFixed(0)}%` : "—"}
+                      {sensorData?.humidity != null ? `${sensorData.humidity.toFixed(0)}%` : "—"}
                     </p>
                     <p className="text-xs text-muted-foreground">Оптималды: 60-80%</p>
                   </div>

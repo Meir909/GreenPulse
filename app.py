@@ -35,23 +35,21 @@ def sensor_data():
         if not data:
             return jsonify({'status': 'error', 'message': 'Нет данных'}), 400
 
-        current_sensor_data = {
-            'timestamp': datetime.now().isoformat(),
-            'station_id': data.get('station_id'),
-            'station_name': data.get('station_name'),
-            'temperature': data.get('temperature'),
-            'humidity': data.get('humidity'),
-            'latitude': data.get('latitude'),
-            'longitude': data.get('longitude'),
-            'accuracy': data.get('accuracy'),
-            'satellites': data.get('satellites'),
-            'altitude': data.get('altitude'),
-            'ph': data.get('ph'),
-            'co2_ppm': data.get('co2_ppm'),
-            'light_intensity': data.get('light_intensity'),
-            'water_level': data.get('water_level'),
-            'gps_valid': data.get('gps_valid', False),
-        }
+        # Начинаем с предыдущих данных или пустого словаря
+        updated = dict(current_sensor_data) if current_sensor_data else {}
+        updated['timestamp'] = datetime.now().isoformat()
+
+        # Обновляем только те поля, которые не None (игнорируем null)
+        fields = ['station_id', 'station_name', 'temperature', 'humidity',
+                  'latitude', 'longitude', 'accuracy', 'satellites', 'altitude',
+                  'ph', 'co2_ppm', 'light_intensity', 'water_level', 'gps_valid']
+
+        for field in fields:
+            value = data.get(field)
+            if value is not None:
+                updated[field] = value
+
+        current_sensor_data = updated
 
         sensor_history.append(current_sensor_data.copy())
 
