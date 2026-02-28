@@ -238,16 +238,24 @@ const StationsPage = () => {
       <Navbar />
 
       {/* Основной контент */}
-      <main className="relative pt-0 pb-0 h-[calc(100vh-80px)] px-0 overflow-hidden">
-        {/* Интерактивная карта на весь экран */}
-        <div className="relative w-full h-full">
+      <main className="relative pt-20 pb-8 min-h-screen px-6">
+        {/* Заголовок */}
+        <h1 className="text-4xl font-bold text-white mb-8">
+          <span className="bg-gradient-to-r from-cyan-400 to-green-400 bg-clip-text text-transparent">
+            Интерактивная карта станций
+          </span>
+        </h1>
+
+        {/* Интерактивная карта */}
+        <div className="mb-8">
           <StationsMapComponent
             onStationSelect={setSelectedStation}
             onAnalyzeClick={handleAnalyzeClick}
             onPredictClick={handlePredictClick}
           />
+        </div>
 
-          {/* Вкладки анализа и прогноза (наложение) */}
+        {/* Вкладки анализа и прогноза (наложение) */}
         {selectedStation && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -299,7 +307,6 @@ const StationsPage = () => {
               )}
             </motion.div>
           )}
-        </div>
       </main>
 
       {/* Плавающая кнопка чатбота */}

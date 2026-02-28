@@ -107,12 +107,15 @@ const StationsMapComponent = ({
 
       console.log("✅ Карта инициализирована");
 
-      // Добавляем tile layer
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution: '&copy; OpenStreetMap contributors',
+      // Добавляем tile layer (используем CartoDB Dark вместо OSM)
+      L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+        attribution: '&copy; OpenStreetMap contributors, &copy; CartoDB',
         maxZoom: 19,
-        opacity: 0.8,
+        opacity: 0.85,
+        crossOrigin: true,
       }).addTo(map.current);
+
+      console.log("✅ Тайлы загружены");
 
       setMapInitialized(true);
 
@@ -235,7 +238,7 @@ const StationsMapComponent = ({
   }, [mapInitialized, onStationSelect, onAnalyzeClick, onPredictClick]);
 
   return (
-    <div className="relative w-full h-full overflow-hidden bg-black">
+    <div className="relative w-full rounded-2xl border border-cyan-500/30 overflow-hidden shadow-2xl bg-black" style={{ height: "600px" }}>
       {/* Контейнер карты */}
       <div
         ref={mapContainer}
@@ -243,11 +246,6 @@ const StationsMapComponent = ({
           width: "100%",
           height: "100%",
           zIndex: 1,
-          position: "absolute",
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
         }}
         className="bg-black leaflet-container"
       />
