@@ -22,55 +22,8 @@ interface StationsMapComponentProps {
   onStationSelect?: (station: Station) => void;
 }
 
-const demoStations: Station[] = [
-  {
-    id: 1,
-    name: "GreenPulse Station - Актау",
-    latitude: 43.6452,
-    longitude: 51.1694,
-    temperature: 22.3,
-    humidity: 65.0,
-    co2_ppm: 420,
-    ph: 6.5,
-    light_intensity: 450,
-    status: "active",
-  },
-  {
-    id: 2,
-    name: "GreenPulse Station - Алматы 1",
-    latitude: 43.2425,
-    longitude: 76.9481,
-    temperature: 23.1,
-    humidity: 68.5,
-    co2_ppm: 415,
-    ph: 6.9,
-    light_intensity: 480,
-    status: "active",
-  },
-  {
-    id: 3,
-    name: "GreenPulse Station - Алматы 2",
-    latitude: 43.2387,
-    longitude: 76.9503,
-    temperature: 21.8,
-    humidity: 62.0,
-    co2_ppm: 425,
-    ph: 6.7,
-    light_intensity: 420,
-    status: "active",
-  },
-];
-
 const PURIFICATION_RADIUS = 0.8;
 const KAZAKHSTAN_CENTER: [number, number] = [48.0196, 66.9237];
-
-// Оранжевый маркер — демо станции
-const stationIcon = L.divIcon({
-  html: `<div style="width:24px;height:24px;background:#ff8c00;border:3px solid white;border-radius:50%;box-shadow:0 0 12px #ff8c00,0 0 6px rgba(0,0,0,0.8);cursor:pointer;"></div>`,
-  iconSize: [24, 24],
-  iconAnchor: [12, 12],
-  className: "",
-});
 
 // Зелёный маркер — реальная ESP32 станция
 const esp32Icon = L.divIcon({
@@ -228,23 +181,6 @@ const StationsMapComponent = ({ onStationSelect }: StationsMapComponentProps) =>
       maxZoom: 19,
     }).addTo(map);
 
-    // Демо станции
-    demoStations.forEach((station) => {
-      L.circle([station.latitude, station.longitude], {
-        radius: PURIFICATION_RADIUS * 1000,
-        color: "#ff8c00",
-        weight: 2,
-        opacity: 0.5,
-        fillColor: "#ff8c00",
-        fillOpacity: 0.08,
-        dashArray: "6, 4",
-      }).addTo(map);
-
-      L.marker([station.latitude, station.longitude], { icon: stationIcon })
-        .on("click", () => openStation(station))
-        .addTo(map);
-    });
-
     // Геолокация пользователя
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
@@ -314,9 +250,6 @@ const StationsMapComponent = ({ onStationSelect }: StationsMapComponentProps) =>
         >
           <h4 className="text-cyan-300 font-bold mb-2">🗺️ Легенда</h4>
           <ul className="text-gray-300 space-y-1">
-            <li className="flex items-center gap-2">
-              <span className="w-3 h-3 rounded-full bg-orange-400 inline-block shadow-[0_0_6px_#ff8c00]" /> Демо станция
-            </li>
             <li className="flex items-center gap-2">
               <span className="w-3 h-3 rounded-full bg-green-400 inline-block shadow-[0_0_6px_#00ff88]" /> ESP32 Live станция
             </li>
