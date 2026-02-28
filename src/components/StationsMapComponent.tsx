@@ -63,18 +63,18 @@ const demoStations: Station[] = [
 const PURIFICATION_RADIUS = 0.8;
 const KAZAKHSTAN_CENTER: [number, number] = [48.0196, 66.9237];
 
-// Зелёный маркер — демо станции
+// Оранжевый маркер — демо станции
 const stationIcon = L.divIcon({
-  html: `<div style="width:24px;height:24px;background:#00ff88;border:3px solid white;border-radius:50%;box-shadow:0 0 12px #00ff88,0 0 6px rgba(0,0,0,0.8);cursor:pointer;"></div>`,
+  html: `<div style="width:24px;height:24px;background:#ff8c00;border:3px solid white;border-radius:50%;box-shadow:0 0 12px #ff8c00,0 0 6px rgba(0,0,0,0.8);cursor:pointer;"></div>`,
   iconSize: [24, 24],
   iconAnchor: [12, 12],
   className: "",
 });
 
-// Оранжевый маркер — реальная ESP32 станция
+// Зелёный маркер — реальная ESP32 станция
 const esp32Icon = L.divIcon({
-  html: `<div style="width:28px;height:28px;background:#ff8c00;border:3px solid white;border-radius:50%;box-shadow:0 0 16px #ff8c00,0 0 8px rgba(0,0,0,0.8);cursor:pointer;position:relative;">
-    <div style="position:absolute;top:-8px;left:50%;transform:translateX(-50%);background:#ff8c00;color:white;font-size:9px;font-weight:bold;padding:1px 4px;border-radius:4px;white-space:nowrap;">LIVE</div>
+  html: `<div style="width:28px;height:28px;background:#00ff88;border:3px solid white;border-radius:50%;box-shadow:0 0 16px #00ff88,0 0 8px rgba(0,0,0,0.8);cursor:pointer;position:relative;">
+    <div style="position:absolute;top:-8px;left:50%;transform:translateX(-50%);background:#00ff88;color:black;font-size:9px;font-weight:bold;padding:1px 4px;border-radius:4px;white-space:nowrap;">LIVE</div>
   </div>`,
   iconSize: [28, 28],
   iconAnchor: [14, 14],
@@ -142,10 +142,10 @@ const StationsMapComponent = ({ onStationSelect }: StationsMapComponentProps) =>
         // Круг радиуса очистки
         esp32CircleRef.current = L.circle([data.latitude, data.longitude], {
           radius: PURIFICATION_RADIUS * 1000,
-          color: "#ff8c00",
+          color: "#00ff88",
           weight: 2,
           opacity: 0.6,
-          fillColor: "#ff8c00",
+          fillColor: "#00ff88",
           fillOpacity: 0.08,
           dashArray: "6, 4",
         }).addTo(leafletMap.current);
@@ -181,10 +181,10 @@ const StationsMapComponent = ({ onStationSelect }: StationsMapComponentProps) =>
     demoStations.forEach((station) => {
       L.circle([station.latitude, station.longitude], {
         radius: PURIFICATION_RADIUS * 1000,
-        color: "#00ff88",
+        color: "#ff8c00",
         weight: 2,
         opacity: 0.5,
-        fillColor: "#00ff88",
+        fillColor: "#ff8c00",
         fillOpacity: 0.08,
         dashArray: "6, 4",
       }).addTo(map);
@@ -259,10 +259,10 @@ const StationsMapComponent = ({ onStationSelect }: StationsMapComponentProps) =>
           <h4 className="text-cyan-300 font-bold mb-2">🗺️ Легенда</h4>
           <ul className="text-gray-300 space-y-1">
             <li className="flex items-center gap-2">
-              <span className="w-3 h-3 rounded-full bg-green-400 inline-block shadow-[0_0_6px_#00ff88]" /> Демо станция
+              <span className="w-3 h-3 rounded-full bg-orange-400 inline-block shadow-[0_0_6px_#ff8c00]" /> Демо станция
             </li>
             <li className="flex items-center gap-2">
-              <span className="w-3 h-3 rounded-full bg-orange-400 inline-block shadow-[0_0_6px_#ff8c00]" /> ESP32 Live станция
+              <span className="w-3 h-3 rounded-full bg-green-400 inline-block shadow-[0_0_6px_#00ff88]" /> ESP32 Live станция
             </li>
             <li className="flex items-center gap-2">
               <span className="w-3 h-3 rounded-full bg-cyan-400 inline-block shadow-[0_0_6px_#00d4ff]" /> Ваша локация
@@ -276,10 +276,10 @@ const StationsMapComponent = ({ onStationSelect }: StationsMapComponentProps) =>
           <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
-            className="absolute top-4 right-4 bg-black/80 backdrop-blur-md p-3 rounded-lg border border-orange-500/40 text-xs z-[1000] min-w-[160px]"
+            className="absolute top-4 right-4 bg-black/80 backdrop-blur-md p-3 rounded-lg border border-green-500/40 text-xs z-[1000] min-w-[160px]"
           >
-            <div className="text-orange-400 font-bold mb-2 flex items-center gap-1">
-              <span className="w-2 h-2 rounded-full bg-orange-400 animate-pulse inline-block" />
+            <div className="text-green-400 font-bold mb-2 flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse inline-block" />
               ESP32 Live
             </div>
             <div className="text-gray-300 space-y-1">
@@ -290,7 +290,7 @@ const StationsMapComponent = ({ onStationSelect }: StationsMapComponentProps) =>
             </div>
             <button
               onClick={() => openStation(esp32Station)}
-              className="mt-2 w-full text-center text-orange-300 border border-orange-500/40 rounded py-1 hover:bg-orange-500/10 transition-colors"
+              className="mt-2 w-full text-center text-green-300 border border-green-500/40 rounded py-1 hover:bg-green-500/10 transition-colors"
             >
               Подробнее →
             </button>
