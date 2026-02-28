@@ -244,10 +244,14 @@ const StationsMapComponent = ({
         ref={mapContainer}
         style={{
           width: "100%",
-          height: "100%",
+          height: "600px",
           zIndex: 1,
+          position: "absolute",
+          top: 0,
+          left: 0,
+          backgroundColor: "#000000",
         }}
-        className="bg-black leaflet-container"
+        className="leaflet-container"
       />
 
       {/* Статус геолокации */}
