@@ -205,33 +205,46 @@ const StationModal = ({ station, isOpen, onClose }: StationModalProps) => {
 
                 {/* Результат ИИ */}
                 <AnimatePresence>
-                  {(isLoading || result) && (
+                  {isLoading && (
                     <motion.div
-                      initial={{ opacity: 0, y: 10 }}
+                      initial={{ opacity: 0, y: 8 }}
                       animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: 10 }}
-                      className={`rounded-xl p-4 border ${
+                      exit={{ opacity: 0 }}
+                      className="flex items-center gap-3 py-3 px-4 rounded-xl bg-white/5 border border-cyan-500/20 text-gray-400"
+                    >
+                      <Loader className="w-4 h-4 animate-spin text-cyan-400 shrink-0" />
+                      <span className="text-sm">ИИ анализирует данные...</span>
+                    </motion.div>
+                  )}
+
+                  {!isLoading && result && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0 }}
+                      className={`rounded-xl border overflow-hidden ${
                         activeTab === "analysis"
-                          ? "bg-cyan-500/5 border-cyan-500/30"
-                          : "bg-green-500/5 border-green-500/30"
+                          ? "border-cyan-500/30"
+                          : "border-green-500/30"
                       }`}
                     >
-                      <p className={`text-xs font-semibold mb-3 ${
-                        activeTab === "analysis" ? "text-cyan-400" : "text-green-400"
+                      {/* Заголовок блока */}
+                      <div className={`px-4 py-2 text-xs font-bold ${
+                        activeTab === "analysis"
+                          ? "bg-cyan-500/15 text-cyan-300"
+                          : "bg-green-500/15 text-green-300"
                       }`}>
-                        {activeTab === "analysis" ? "📊 Результат анализа" : "🔮 Прогноз поглощения CO2"}
-                      </p>
+                        {activeTab === "analysis" ? "📊 Анализ ИИ" : "🔮 Прогноз ИИ"}
+                      </div>
 
-                      {isLoading ? (
-                        <div className="flex items-center gap-3 text-gray-400">
-                          <Loader className="w-4 h-4 animate-spin text-cyan-400" />
-                          <span className="text-sm">ИИ анализирует данные...</span>
-                        </div>
-                      ) : (
-                        <p className="text-gray-200 text-sm leading-relaxed whitespace-pre-wrap">
-                          {result}
-                        </p>
-                      )}
+                      {/* Строки результата */}
+                      <div className="bg-black/40 divide-y divide-white/5">
+                        {result.split("\n").filter(line => line.trim()).map((line, i) => (
+                          <div key={i} className="px-4 py-2 text-sm text-gray-200 leading-snug">
+                            {line}
+                          </div>
+                        ))}
+                      </div>
                     </motion.div>
                   )}
                 </AnimatePresence>
