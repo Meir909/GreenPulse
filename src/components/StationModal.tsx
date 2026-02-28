@@ -117,7 +117,7 @@ const StationModal = ({ station, isOpen, onClose }: StationModalProps) => {
                     <h2 className="text-lg font-bold text-white">{station.name}</h2>
                     <p className="text-xs text-cyan-300 flex items-center gap-1 mt-0.5">
                       <MapPin className="w-3 h-3" />
-                      {station.latitude.toFixed(4)}°N, {station.longitude.toFixed(4)}°E
+                      {station.latitude?.toFixed(4) ?? "—"}°N, {station.longitude?.toFixed(4) ?? "—"}°E
                     </p>
                   </div>
                 </div>
@@ -140,11 +140,11 @@ const StationModal = ({ station, isOpen, onClose }: StationModalProps) => {
                 <div className="grid grid-cols-2 gap-3">
                   <div className="bg-white/5 rounded-lg p-3 border border-cyan-500/20">
                     <p className="text-xs text-gray-400 mb-1">Широта</p>
-                    <p className="text-white font-mono text-sm">{station.latitude.toFixed(4)}</p>
+                    <p className="text-white font-mono text-sm">{station.latitude?.toFixed(4) ?? "—"}</p>
                   </div>
                   <div className="bg-white/5 rounded-lg p-3 border border-cyan-500/20">
                     <p className="text-xs text-gray-400 mb-1">Долгота</p>
-                    <p className="text-white font-mono text-sm">{station.longitude.toFixed(4)}</p>
+                    <p className="text-white font-mono text-sm">{station.longitude?.toFixed(4) ?? "—"}</p>
                   </div>
                 </div>
 
@@ -162,7 +162,7 @@ const StationModal = ({ station, isOpen, onClose }: StationModalProps) => {
                   </div>
                   <div className="bg-gradient-to-br from-purple-500/10 to-transparent rounded-xl p-4 border border-purple-500/20">
                     <p className="text-xs text-purple-400 mb-1">pH</p>
-                    <p className="text-2xl font-bold text-purple-300">{station.ph.toFixed(1)}</p>
+                    <p className="text-2xl font-bold text-purple-300">{station.ph?.toFixed(1) ?? "—"}</p>
                     <p className="text-xs text-gray-500 mt-1">Оптимум: 6.5–7.5</p>
                   </div>
                   <div className="bg-gradient-to-br from-yellow-500/10 to-transparent rounded-xl p-4 border border-yellow-500/20">

@@ -95,7 +95,7 @@ const AIAnalysisPanel = ({
               <div className="bg-gradient-to-br from-purple-500/10 to-transparent rounded-lg p-3 border border-purple-500/20">
                 <p className="text-xs text-gray-400">pH</p>
                 <p className="text-lg font-bold text-purple-300">
-                  {station.ph.toFixed(1)}
+                  {station.ph?.toFixed(1) ?? "—"}
                 </p>
               </div>
 
