@@ -16,6 +16,7 @@ const DashboardSection = () => {
 
   const [sensorData, setSensorData] = useState<SensorData | null>(null);
   const [offline, setOffline] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [co2History, setCo2History] = useState<{ time: string; value: number }[]>([]);
   const [lastCo2, setLastCo2] = useState<number | null>(null);
 
@@ -26,12 +27,14 @@ const DashboardSection = () => {
 
       if (json.status === "offline" || !json.data) {
         setOffline(true);
+        setLoading(false);
         return;
       }
 
       const d: SensorData = json.data;
       setSensorData(d);
       setOffline(false);
+      setLoading(false);
 
       // Обновляем историю CO2 (последние 5 точек)
       setCo2History(prev => {
@@ -45,6 +48,7 @@ const DashboardSection = () => {
 
     } catch {
       setOffline(true);
+      setLoading(false);
     }
   };
 
@@ -73,7 +77,16 @@ const DashboardSection = () => {
           </h2>
         </motion.div>
 
-        {offline ? (
+        {loading ? (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={inView ? { opacity: 1 } : {}}
+            className="glass rounded-xl p-10 neon-border text-center"
+          >
+            <div className="text-4xl mb-4 animate-pulse">📡</div>
+            <p className="text-muted-foreground">Деректер жүктелуде... / Загрузка данных...</p>
+          </motion.div>
+        ) : offline ? (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={inView ? { opacity: 1, y: 0 } : {}}
