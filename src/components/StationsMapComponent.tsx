@@ -88,6 +88,8 @@ const StationsMapComponent = ({
   useEffect(() => {
     if (!mapContainer.current || mapInitialized) return;
 
+    console.log("🗺️ Инициализация карты...", mapContainer.current);
+
     // Исправляем иконки Leaflet
     fixLeafletIcons();
 
@@ -102,6 +104,8 @@ const StationsMapComponent = ({
         zoomControl: true,
         attributionControl: true,
       });
+
+      console.log("✅ Карта инициализирована");
 
       // Добавляем tile layer
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -231,7 +235,7 @@ const StationsMapComponent = ({
   }, [mapInitialized, onStationSelect, onAnalyzeClick, onPredictClick]);
 
   return (
-    <div className="relative w-full h-full rounded-2xl border border-cyan-500/30 overflow-hidden shadow-2xl bg-black">
+    <div className="relative w-full h-full overflow-hidden bg-black">
       {/* Контейнер карты */}
       <div
         ref={mapContainer}
@@ -240,7 +244,7 @@ const StationsMapComponent = ({
           height: "100%",
           zIndex: 1,
         }}
-        className="bg-black"
+        className="absolute inset-0 bg-black"
       />
 
       {/* Статус геолокации */}
