@@ -3,7 +3,6 @@ from flask_cors import CORS
 import os
 from dotenv import load_dotenv
 from openai import OpenAI
-import json
 from datetime import datetime
 
 load_dotenv()
@@ -19,71 +18,54 @@ except Exception as e:
     print(f"❌ Ошибка инициализации OpenAI клиента: {e}")
     client = None
 
-# Демо данные ESP32 (временно, пока ESP32 не подключена)
-demo_sensor_data = {
-    'station_id': 1,
-    'station_name': 'GreenPulse Station 01 - Mobile (ESP32)',
-    'timestamp': datetime.now().isoformat(),
-    'temperature': 22.3,
-    'humidity': 65.0,
-    'latitude': 55.7558,      # GPS - Москва
-    'longitude': 37.6173,
-    'accuracy': 10.0,         # точность GPS (HDOP)
-    'satellites': 0,          # количество спутников
-    'altitude': 150.0,        # высота
-    'ph': 6.5,                # pH - добавим потом
-    'co2_ppm': 420,
-    'light_intensity': 450,
-    'water_level': 85
-}
-
-# Хранилище данных датчиков (для демо и истории)
+# Хранилище данных датчиков
 sensor_history = []
-current_sensor_data = demo_sensor_data.copy()
+current_sensor_data = None  # None = ESP32 ещё не подключалась
 
 @app.route('/api/sensor-data', methods=['GET', 'POST'])
 def sensor_data():
     """
     GET: получить текущие данные датчиков с ESP32
-    POST: получить данные с ESP32 (обновляет текущие значения)
+    POST: ESP32 отправляет реальные данные сюда
     """
     global current_sensor_data
 
     if request.method == 'POST':
-        # ESP32 отправляет данные сюда
         data = request.json
+        if not data:
+            return jsonify({'status': 'error', 'message': 'Нет данных'}), 400
 
-        # Обновляем текущие данные
         current_sensor_data = {
             'timestamp': datetime.now().isoformat(),
-            'station_id': data.get('station_id', 1),
-            'station_name': data.get('station_name', 'GreenPulse Station 01'),
-            'temperature': data.get('temperature', demo_sensor_data['temperature']),
-            'humidity': data.get('humidity', demo_sensor_data['humidity']),
-            'latitude': data.get('latitude', demo_sensor_data['latitude']),      # GPS
-            'longitude': data.get('longitude', demo_sensor_data['longitude']),
-            'accuracy': data.get('accuracy', demo_sensor_data['accuracy']),      # GPS точность
-            'satellites': data.get('satellites', demo_sensor_data['satellites']),# GPS спутники
-            'altitude': data.get('altitude', demo_sensor_data['altitude']),      # GPS высота
-            'ph': data.get('ph', demo_sensor_data['ph']),
-            'co2_ppm': data.get('co2_ppm', demo_sensor_data['co2_ppm']),
-            'light_intensity': data.get('light_intensity', demo_sensor_data['light_intensity']),
-            'water_level': data.get('water_level', demo_sensor_data['water_level'])
+            'station_id': data.get('station_id'),
+            'station_name': data.get('station_name'),
+            'temperature': data.get('temperature'),
+            'humidity': data.get('humidity'),
+            'latitude': data.get('latitude'),
+            'longitude': data.get('longitude'),
+            'accuracy': data.get('accuracy'),
+            'satellites': data.get('satellites'),
+            'altitude': data.get('altitude'),
+            'ph': data.get('ph'),
+            'co2_ppm': data.get('co2_ppm'),
+            'light_intensity': data.get('light_intensity'),
+            'water_level': data.get('water_level'),
+            'gps_valid': data.get('gps_valid', False),
         }
 
-        # Сохраняем в историю
         sensor_history.append(current_sensor_data.copy())
 
-        print(f"\n📊 Получены данные с ESP32:")
-        print(f"   Температура: {current_sensor_data['temperature']}°C")
-        print(f"   Влажность: {current_sensor_data['humidity']}%")
-        print(f"   GPS: {current_sensor_data['latitude']}, {current_sensor_data['longitude']}")
-        print(f"   Спутников: {current_sensor_data['satellites']}")
+        print(f"\n📊 Данные с ESP32: T={current_sensor_data['temperature']}°C "
+              f"H={current_sensor_data['humidity']}% "
+              f"GPS={current_sensor_data['latitude']},{current_sensor_data['longitude']}")
 
         return jsonify({'status': 'received', 'data': current_sensor_data}), 201
 
-    # GET: возвращаем текущие данные
-    return jsonify(current_sensor_data), 200
+    # GET: если ESP32 ещё не подключалась — возвращаем offline статус
+    if current_sensor_data is None:
+        return jsonify({'status': 'offline', 'message': 'ESP32 не подключена'}), 200
+
+    return jsonify({'status': 'online', 'data': current_sensor_data}), 200
 
 @app.route('/api/ai-analyze-sensors', methods=['POST'])
 def ai_analyze_sensors():

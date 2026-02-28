@@ -109,40 +109,41 @@ const StationsMapComponent = ({ onStationSelect }: StationsMapComponentProps) =>
     onStationSelect?.(station);
   };
 
-  // Загрузка данных с ESP32
+  // Загрузка данных с ESP32 (WiFi режим)
   const fetchEsp32Data = async () => {
     try {
       const res = await fetch("/api/sensor-data");
       if (!res.ok) return;
-      const data = await res.json();
+      const json = await res.json();
 
-      // Проверяем что это реальные данные (не демо с координатами Москвы)
-      const isReal = data.latitude !== 55.7558 && data.latitude !== 0 && data.longitude !== 0;
+      // Если ESP32 офлайн — ничего не показываем
+      if (json.status === "offline" || !json.data) return;
+
+      const d = json.data;
+      const hasGPS = d.gps_valid && d.latitude && d.longitude &&
+                     d.latitude !== 0 && d.longitude !== 0;
 
       const station: Station = {
-        id: 4,
-        name: data.station_name || "GreenPulse ESP32 (Live)",
-        latitude: data.latitude,
-        longitude: data.longitude,
-        temperature: data.temperature,
-        humidity: data.humidity,
-        co2_ppm: data.co2_ppm,
-        ph: data.ph,
-        light_intensity: data.light_intensity,
+        id: d.station_id || 4,
+        name: d.station_name || "GreenPulse ESP32 (WiFi)",
+        latitude: d.latitude,
+        longitude: d.longitude,
+        temperature: d.temperature,
+        humidity: d.humidity,
+        co2_ppm: d.co2_ppm,
+        ph: d.ph,
+        light_intensity: d.light_intensity,
         status: "active",
       };
 
       setEsp32Station(station);
-      setEsp32Online(isReal);
+      setEsp32Online(hasGPS);
 
-      // Обновляем маркер на карте если GPS валидный
-      if (isReal && leafletMap.current) {
-        // Удаляем старый маркер и круг
+      if (hasGPS && leafletMap.current) {
         if (esp32MarkerRef.current) esp32MarkerRef.current.remove();
         if (esp32CircleRef.current) esp32CircleRef.current.remove();
 
-        // Круг радиуса очистки
-        esp32CircleRef.current = L.circle([data.latitude, data.longitude], {
+        esp32CircleRef.current = L.circle([d.latitude, d.longitude], {
           radius: PURIFICATION_RADIUS * 1000,
           color: "#00ff88",
           weight: 2,
@@ -152,8 +153,7 @@ const StationsMapComponent = ({ onStationSelect }: StationsMapComponentProps) =>
           dashArray: "6, 4",
         }).addTo(leafletMap.current);
 
-        // Маркер
-        esp32MarkerRef.current = L.marker([data.latitude, data.longitude], { icon: esp32Icon })
+        esp32MarkerRef.current = L.marker([d.latitude, d.longitude], { icon: esp32Icon })
           .on("click", () => openStation(station))
           .addTo(leafletMap.current);
       }
