@@ -53,9 +53,9 @@ def sensor_data():
 
         sensor_history.append(current_sensor_data.copy())
 
-        print(f"\n📊 Данные с ESP32: T={current_sensor_data['temperature']}°C "
-              f"H={current_sensor_data['humidity']}% "
-              f"GPS={current_sensor_data['latitude']},{current_sensor_data['longitude']}")
+        print(f"\n📊 Данные с ESP32: T={current_sensor_data.get('temperature')}°C "
+              f"H={current_sensor_data.get('humidity')}% "
+              f"GPS={current_sensor_data.get('latitude')},{current_sensor_data.get('longitude')}")
 
         return jsonify({'status': 'received', 'data': current_sensor_data}), 201
 
