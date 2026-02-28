@@ -47,7 +47,7 @@ const CalculatorSection = () => {
                 onChange={(e) => setBenches(Number(e.target.value))}
                 className="w-full accent-primary h-2 bg-muted rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-primary [&::-webkit-slider-thumb]:shadow-[0_0_10px_rgba(0,255,136,0.5)]"
               />
-              <p className="font-mono-data text-5xl font-bold text-primary mt-4 drop-shadow-[0_0_8px_rgba(0,212,255,0.6)]">{benches}</p>
+              <p className="font-mono-data text-4xl md:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-green-400 mt-4 drop-shadow-[0_0_12px_rgba(0,212,255,0.6)]">{benches}</p>
             </div>
 
             {/* City select */}
@@ -65,7 +65,7 @@ const CalculatorSection = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
             <ResultCard label="CO₂ жылына" value={`${co2.toLocaleString()} кг`} />
             <ResultCard label="Ағаш баламасы" value={`🌳 ${trees.toLocaleString()}`} />
             <ResultCard label="Адамдар" value={`${people.toLocaleString()}`} />
@@ -78,9 +78,9 @@ const CalculatorSection = () => {
 };
 
 const ResultCard = ({ label, value }: { label: string; value: string }) => (
-  <div className="glass rounded-xl p-4 text-center border border-primary/30">
-    <p className="text-xs text-muted-foreground mb-2 uppercase tracking-wider">{label}</p>
-    <p className="font-mono-data text-2xl md:text-3xl font-bold text-primary drop-shadow-[0_0_10px_rgba(0,212,255,0.5)]">{value}</p>
+  <div className="glass rounded-lg md:rounded-xl p-3 md:p-4 text-center border border-primary/40 bg-gradient-to-br from-cyan-500/10 to-green-500/10 hover:border-primary/60 transition-all">
+    <p className="text-[10px] md:text-xs text-primary/90 mb-2 uppercase tracking-widest font-semibold">{label}</p>
+    <p className="font-mono-data text-xl md:text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-primary to-green-400 drop-shadow-[0_0_12px_rgba(0,212,255,0.6)]">{value}</p>
   </div>
 );
 
