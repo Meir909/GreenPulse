@@ -6,9 +6,9 @@ const MarketSection = () => {
   const inView = useInView(ref, { once: true, margin: "-100px" });
 
   const circles = [
-    { label: "TAM", value: "$4.2B", desc: "Жаһандық ауа тазарту нарығы", size: 280 },
-    { label: "SAM", value: "$280M", desc: "ТМД + Орталық Азия", size: 200 },
-    { label: "SOM", value: "$18M", desc: "ҚР мектептер + қалалар", size: 120 },
+    { label: "TAM", value: "$4.2B", desc: "Жаһандық ауа тазарту нарығы", position: "left" },
+    { label: "SAM", value: "$280M", desc: "ТМД + Орталық Азия", position: "center" },
+    { label: "SOM", value: "$18M", desc: "ҚР мектептер + қалалар", position: "right" },
   ];
 
   return (
@@ -26,24 +26,23 @@ const MarketSection = () => {
           </h2>
         </motion.div>
 
-        <div className="relative flex items-center justify-center" style={{ height: 320 }}>
+        <div className="grid md:grid-cols-3 grid-cols-1 gap-8 md:gap-4">
           {circles.map((c, i) => (
             <motion.div
               key={c.label}
               initial={{ opacity: 0, scale: 0 }}
               animate={inView ? { opacity: 1, scale: 1 } : {}}
               transition={{ delay: 0.2 + i * 0.2, duration: 0.6, type: "spring" }}
-              className="absolute rounded-full border flex flex-col items-center justify-center text-center"
+              className="flex flex-col items-center justify-center text-center rounded-full border p-6 md:p-4"
               style={{
-                width: c.size,
-                height: c.size,
-                borderColor: i === 2 ? "hsl(153 100% 50% / 0.95)" : i === 1 ? "hsl(153 100% 50% / 0.75)" : "hsl(153 100% 50% / 0.45)",
-                background: i === 2
+                aspectRatio: "1 / 1",
+                borderColor: i === 0 ? "hsl(153 100% 50% / 0.95)" : i === 1 ? "hsl(153 100% 50% / 0.75)" : "hsl(153 100% 50% / 0.45)",
+                background: i === 0
                   ? "hsl(153 100% 50% / 0.25)"
                   : i === 1
                   ? "hsl(153 100% 50% / 0.14)"
                   : "hsl(153 100% 50% / 0.08)",
-                boxShadow: i === 2
+                boxShadow: i === 0
                   ? "0 0 60px hsl(153 100% 50% / 0.6), 0 0 120px hsl(153 100% 50% / 0.3), inset 0 0 40px hsl(153 100% 50% / 0.2)"
                   : i === 1
                   ? "0 0 40px hsl(153 100% 50% / 0.4), 0 0 80px hsl(153 100% 50% / 0.2), inset 0 0 30px hsl(153 100% 50% / 0.15)"
