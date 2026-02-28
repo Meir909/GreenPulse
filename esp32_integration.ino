@@ -1,28 +1,33 @@
-// GreenPulse ESP32 — DHT11 + NEO-6M + LCD + BLE → браузер
-// Библиотеки: DHT, TinyGPS++, LiquidCrystal_I2C, ArduinoJson (встроены в ESP32)
+// GreenPulse ESP32 — DHT11 + NEO-6M + LCD + WiFi → greenpulse-su2h.onrender.com
 //
 // КАК РАБОТАЕТ:
-//   1. ESP32 включается и начинает рекламировать себя по Bluetooth (BLE)
-//   2. Пользователь на сайте нажимает "Подключить ESP32"
-//   3. Браузер (Chrome) находит устройство "GreenPulse-Station"
-//   4. Данные с датчиков передаются в браузер по BLE
-//   5. Браузер отправляет данные на сервер и показывает маркер на карте
+//   1. ESP32 подключается к WiFi "BB" / "Student111"
+//   2. Каждые 10 сек читает DHT11 (температура, влажность) и GPS (координаты)
+//   3. Отправляет POST /api/sensor-data на сайт
+//   4. Сайт показывает реальную станцию на карте
+//
+// БИБЛИОТЕКИ (установить в Arduino IDE → Library Manager):
+//   - DHT sensor library (by Adafruit)
+//   - TinyGPS++ (by Mikal Hart)
+//   - LiquidCrystal I2C (by Frank de Brabander)
+//   - ArduinoJson (by Benoit Blanchon)
+//   WiFi и HTTPClient встроены в ESP32 Arduino Core
 
+#include <WiFi.h>
+#include <HTTPClient.h>
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
 #include <DHT.h>
 #include <TinyGPS++.h>
 #include <HardwareSerial.h>
-#include <BLEDevice.h>
-#include <BLEServer.h>
-#include <BLEUtils.h>
-#include <BLE2902.h>
 #include <ArduinoJson.h>
 
-// ===== BLE UUID (уникальные идентификаторы сервиса и характеристик) =====
-#define SERVICE_UUID        "12345678-1234-1234-1234-123456789abc"
-#define SENSOR_CHAR_UUID    "12345678-1234-1234-1234-123456789ab1"  // данные датчиков (notify)
-#define GPS_CHAR_UUID       "12345678-1234-1234-1234-123456789ab2"  // GPS координаты (notify)
+// ===== WiFi =====
+const char* WIFI_SSID     = "BB";
+const char* WIFI_PASSWORD = "Student111";
+
+// ===== Сервер =====
+const char* SERVER_URL = "https://greenpulse-su2h.onrender.com/api/sensor-data";
 
 // ===== DHT11 =====
 #define DHTPIN  33
@@ -47,51 +52,57 @@ int   satellites  = 0;
 float altitude    = 0.0;
 bool  gpsValid    = false;
 
-// ===== BLE =====
-BLEServer*         pServer         = nullptr;
-BLECharacteristic* pSensorChar     = nullptr;
-BLECharacteristic* pGPSChar        = nullptr;
-bool               bleConnected    = false;
-bool               bleWasConnected = false;
-
-// ===== Таймер =====
-unsigned long lastNotifyTime = 0;
-const unsigned long NOTIFY_INTERVAL = 3000; // отправка каждые 3 сек
+// ===== Таймер отправки =====
+unsigned long lastSendTime = 0;
+const unsigned long SEND_INTERVAL = 10000; // каждые 10 сек
 
 // ===== LCD helper =====
-void printLine(int row, const String &text) {
+void printLine(int row, const String& text) {
   lcd.setCursor(0, row);
   lcd.print("                ");
   lcd.setCursor(0, row);
   lcd.print(text);
 }
 
-// ===== BLE callbacks — отслеживаем подключение =====
-class ServerCallbacks : public BLEServerCallbacks {
-  void onConnect(BLEServer* pServer) override {
-    bleConnected = true;
-    Serial.println("✅ BLE: браузер подключился!");
-    printLine(0, "BLE connected!");
+// ===== Подключение к WiFi =====
+void connectWiFi() {
+  Serial.printf("📶 Подключаюсь к WiFi: %s\n", WIFI_SSID);
+  printLine(0, "Connecting WiFi");
+  printLine(1, WIFI_SSID);
+
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+
+  int attempts = 0;
+  while (WiFi.status() != WL_CONNECTED && attempts < 30) {
+    delay(500);
+    Serial.print(".");
+    attempts++;
   }
-  void onDisconnect(BLEServer* pServer) override {
-    bleConnected    = false;
-    bleWasConnected = true;
-    Serial.println("❌ BLE: браузер отключился");
-    printLine(0, "BLE disconnect");
-    // Перезапускаем рекламу чтобы снова можно было подключиться
-    BLEDevice::startAdvertising();
+
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.printf("\n✅ WiFi подключён! IP: %s\n", WiFi.localIP().toString().c_str());
+    printLine(0, "WiFi OK!");
+    printLine(1, WiFi.localIP().toString());
+    delay(1500);
+  } else {
+    Serial.println("\n❌ WiFi не подключился! Проверь SSID/пароль.");
+    printLine(0, "WiFi FAILED!");
+    printLine(1, "Check settings");
+    delay(3000);
   }
-};
+}
 
 void setup() {
   Serial.begin(115200);
+  delay(100);
 
   // LCD
   lcd.init();
   lcd.backlight();
   lcd.clear();
-  printLine(0, "GreenPulse BLE");
-  printLine(1, "Initializing...");
+  printLine(0, "GreenPulse");
+  printLine(1, "Starting...");
 
   // DHT11
   dht.begin();
@@ -99,53 +110,27 @@ void setup() {
   // GPS
   gpsSerial.begin(9600, SERIAL_8N1, GPS_RX, GPS_TX);
 
-  // ===== BLE инициализация =====
-  BLEDevice::init("GreenPulse-Station"); // имя устройства в Bluetooth
+  // WiFi
+  connectWiFi();
 
-  pServer = BLEDevice::createServer();
-  pServer->setCallbacks(new ServerCallbacks());
-
-  // Создаём BLE сервис
-  BLEService* pService = pServer->createService(SERVICE_UUID);
-
-  // Характеристика для данных датчиков (температура, влажность и т.д.)
-  pSensorChar = pService->createCharacteristic(
-    SENSOR_CHAR_UUID,
-    BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_NOTIFY
-  );
-  pSensorChar->addDescriptor(new BLE2902());
-
-  // Характеристика для GPS координат
-  pGPSChar = pService->createCharacteristic(
-    GPS_CHAR_UUID,
-    BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_NOTIFY
-  );
-  pGPSChar->addDescriptor(new BLE2902());
-
-  // Запускаем сервис
-  pService->start();
-
-  // Настраиваем рекламу (чтобы браузер мог найти устройство)
-  BLEAdvertising* pAdvertising = BLEDevice::getAdvertising();
-  pAdvertising->addServiceUUID(SERVICE_UUID);
-  pAdvertising->setScanResponse(true);
-  pAdvertising->setMinPreferred(0x06);
-  BLEDevice::startAdvertising();
-
-  Serial.println("📶 BLE готов! Ищи 'GreenPulse-Station' в браузере");
-  printLine(0, "GreenPulse BLE");
-  printLine(1, "Waiting...");
+  Serial.println("🚀 GreenPulse ESP32 готов!");
 }
 
 void loop() {
+  // Переподключаемся если WiFi упал
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("⚠️ WiFi потерян, переподключаюсь...");
+    connectWiFi();
+  }
+
   readGPS();
   readDHT11();
   updateLCD();
 
-  // Отправляем данные по BLE каждые 3 сек если подключён
-  if (millis() - lastNotifyTime >= NOTIFY_INTERVAL) {
-    sendBLEData();
-    lastNotifyTime = millis();
+  // Отправляем данные каждые 10 сек
+  if (millis() - lastSendTime >= SEND_INTERVAL) {
+    sendData();
+    lastSendTime = millis();
   }
 
   delay(100);
@@ -189,48 +174,62 @@ void updateLCD() {
   snprintf(line0, sizeof(line0), "T:%.1fC H:%.0f%%", temperature, humidity);
   printLine(0, String(line0));
 
-  if (bleConnected) {
-    printLine(1, "BLE: connected");
-  } else if (gpsValid) {
+  if (gpsValid) {
     char line1[17];
-    snprintf(line1, sizeof(line1), "SAT:%d BLE:wait", satellites);
+    snprintf(line1, sizeof(line1), "SAT:%d OK", satellites);
     printLine(1, String(line1));
   } else {
     printLine(1, "GPS search...");
   }
 }
 
-// ===== Отправка данных по BLE =====
-void sendBLEData() {
-  // JSON с данными датчиков
-  StaticJsonDocument<200> sensorDoc;
-  sensorDoc["temperature"]     = temperature;
-  sensorDoc["humidity"]        = humidity;
-  sensorDoc["co2_ppm"]         = 420;
-  sensorDoc["ph"]              = 7.0;
-  sensorDoc["light_intensity"] = 450;
-  sensorDoc["station_id"]      = 4;
-  sensorDoc["station_name"]    = "GreenPulse ESP32";
-
-  String sensorJson;
-  serializeJson(sensorDoc, sensorJson);
-  pSensorChar->setValue(sensorJson.c_str());
-  pSensorChar->notify();
-
-  // JSON с GPS данными
-  StaticJsonDocument<128> gpsDoc;
-  gpsDoc["latitude"]   = gpsValid ? latitude  : 0.0;
-  gpsDoc["longitude"]  = gpsValid ? longitude : 0.0;
-  gpsDoc["satellites"] = satellites;
-  gpsDoc["altitude"]   = altitude;
-  gpsDoc["gps_valid"]  = gpsValid;
-
-  String gpsJson;
-  serializeJson(gpsDoc, gpsJson);
-  pGPSChar->setValue(gpsJson.c_str());
-  pGPSChar->notify();
-
-  if (bleConnected) {
-    Serial.println("📡 BLE: данные отправлены");
+// ===== Отправка данных на сервер =====
+void sendData() {
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("❌ Нет WiFi, пропускаю отправку");
+    return;
   }
+
+  // Формируем JSON
+  StaticJsonDocument<300> doc;
+  doc["station_id"]      = 4;
+  doc["station_name"]    = "GreenPulse ESP32";
+  doc["temperature"]     = temperature;
+  doc["humidity"]        = humidity;
+  doc["co2_ppm"]         = 420;       // заменить на реальный датчик если есть
+  doc["ph"]              = 7.0;       // заменить на реальный датчик если есть
+  doc["light_intensity"] = 450;       // заменить на реальный датчик если есть
+  doc["water_level"]     = 85;
+  doc["latitude"]        = gpsValid ? latitude  : 0.0;
+  doc["longitude"]       = gpsValid ? longitude : 0.0;
+  doc["altitude"]        = altitude;
+  doc["satellites"]      = satellites;
+  doc["gps_valid"]       = gpsValid;
+
+  String json;
+  serializeJson(doc, json);
+
+  Serial.printf("\n📡 Отправляю данные на сервер...\n%s\n", json.c_str());
+
+  HTTPClient http;
+  http.begin(SERVER_URL);
+  http.addHeader("Content-Type", "application/json");
+  http.setTimeout(10000); // 10 сек таймаут
+
+  int httpCode = http.POST(json);
+
+  if (httpCode == 201) {
+    Serial.printf("✅ Данные отправлены! HTTP %d\n", httpCode);
+    printLine(1, "Sent OK!");
+    delay(500);
+  } else if (httpCode > 0) {
+    Serial.printf("⚠️ Сервер ответил: HTTP %d\n", httpCode);
+    Serial.println(http.getString());
+  } else {
+    Serial.printf("❌ Ошибка HTTP: %s\n", http.errorToString(httpCode).c_str());
+    printLine(1, "Send FAIL!");
+    delay(500);
+  }
+
+  http.end();
 }
