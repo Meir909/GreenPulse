@@ -65,13 +65,12 @@ const demoStations: Station[] = [
 const PURIFICATION_RADIUS = 0.8;
 const KAZAKHSTAN_CENTER: LatLngExpression = [48.0196, 66.9237];
 
-// Исправляем иконки Leaflet по умолчанию
-const fixLeafletIcons = () => {
-  delete (L.Icon.Default.prototype as any)._getIconUrl;
-  L.Icon.Default.mergeOptions({
-    iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png",
-    iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png",
-    shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
+// Создаём простой HTML маркер без CDN зависимостей
+const createSimpleMarker = (color: string) => {
+  return L.divIcon({
+    html: `<div style="background-color: ${color}; width: 20px; height: 20px; border-radius: 50%; border: 2px solid white; box-shadow: 0 0 10px rgba(0,0,0,0.5);"></div>`,
+    iconSize: [20, 20],
+    className: "simple-marker",
   });
 };
 
@@ -89,9 +88,6 @@ const StationsMapComponent = ({
     if (!mapContainer.current || mapInitialized) return;
 
     console.log("🗺️ Инициализация карты...", mapContainer.current);
-
-    // Исправляем иконки Leaflet
-    fixLeafletIcons();
 
     // Инициализируем карту
     const initialCenter = KAZAKHSTAN_CENTER;
@@ -128,16 +124,9 @@ const StationsMapComponent = ({
             if (map.current) {
               map.current.setView([latitude, longitude], 12);
 
-              // Добавляем маркер пользователя
+              // Добавляем маркер пользователя (синий круг)
               L.marker([latitude, longitude], {
-                icon: L.icon({
-                  iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png",
-                  shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
-                  iconSize: [25, 41],
-                  iconAnchor: [12, 41],
-                  popupAnchor: [1, -34],
-                  shadowSize: [41, 41],
-                }),
+                icon: createSimpleMarker("#0084ff"),
               })
                 .bindPopup(
                   `<div style="background: black; color: white; padding: 8px; border: 1px solid #00d4ff; border-radius: 4px;">
@@ -183,18 +172,9 @@ const StationsMapComponent = ({
         dashArray: "5, 5",
       }).addTo(map.current!);
 
-      // Добавляем маркер станции
-      const markerIcon = L.icon({
-        iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png",
-        shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
-        iconSize: [25, 41],
-        iconAnchor: [12, 41],
-        popupAnchor: [1, -34],
-        shadowSize: [41, 41],
-      });
-
+      // Добавляем маркер станции (зелёный круг)
       const marker = L.marker([station.latitude, station.longitude], {
-        icon: markerIcon,
+        icon: createSimpleMarker("#00ff88"),
       });
 
       const popupContent = `
