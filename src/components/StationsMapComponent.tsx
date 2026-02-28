@@ -3,6 +3,7 @@ import L from "leaflet";
 import { motion } from "framer-motion";
 import "leaflet/dist/leaflet.css";
 import StationModal from "./StationModal";
+import BluetoothConnect from "./BluetoothConnect";
 
 interface Station {
   id: number;
@@ -100,6 +101,7 @@ const StationsMapComponent = ({ onStationSelect }: StationsMapComponentProps) =>
   const [modalOpen, setModalOpen] = useState(false);
   const [esp32Station, setEsp32Station] = useState<Station | null>(null);
   const [esp32Online, setEsp32Online] = useState(false);
+  const [bleConnected, setBleConnected] = useState(false);
 
   const openStation = (station: Station) => {
     setSelectedStation(station);
@@ -157,6 +159,55 @@ const StationsMapComponent = ({ onStationSelect }: StationsMapComponentProps) =>
       }
     } catch (e) {
       console.log("ESP32 недоступен:", e);
+    }
+  };
+
+  // Обработчик данных с ESP32 по BLE
+  const handleBleData = (data: {
+    temperature: number; humidity: number; co2_ppm: number;
+    ph: number; light_intensity: number; station_id: number; station_name: string;
+    latitude: number; longitude: number; satellites: number; gps_valid: boolean;
+  }) => {
+    setBleConnected(true);
+
+    const station: Station = {
+      id: data.station_id || 4,
+      name: data.station_name || "GreenPulse ESP32 (BLE)",
+      latitude: data.latitude,
+      longitude: data.longitude,
+      temperature: data.temperature,
+      humidity: data.humidity,
+      co2_ppm: data.co2_ppm,
+      ph: data.ph,
+      light_intensity: data.light_intensity,
+      status: "active",
+    };
+
+    setEsp32Station(station);
+
+    const hasGPS = data.gps_valid && data.latitude !== 0 && data.longitude !== 0;
+    setEsp32Online(hasGPS);
+
+    if (hasGPS && leafletMap.current) {
+      if (esp32MarkerRef.current) esp32MarkerRef.current.remove();
+      if (esp32CircleRef.current) esp32CircleRef.current.remove();
+
+      esp32CircleRef.current = L.circle([data.latitude, data.longitude], {
+        radius: PURIFICATION_RADIUS * 1000,
+        color: "#00ff88",
+        weight: 2,
+        opacity: 0.6,
+        fillColor: "#00ff88",
+        fillOpacity: 0.08,
+        dashArray: "6, 4",
+      }).addTo(leafletMap.current);
+
+      esp32MarkerRef.current = L.marker([data.latitude, data.longitude], { icon: esp32Icon })
+        .on("click", () => openStation(station))
+        .addTo(leafletMap.current);
+
+      // Центрируем карту на станции при первом получении GPS
+      leafletMap.current.setView([data.latitude, data.longitude], 13);
     }
   };
 
@@ -240,9 +291,14 @@ const StationsMapComponent = ({ onStationSelect }: StationsMapComponentProps) =>
           ) : (
             <div className="text-yellow-400">📍 Показана карта Казахстана</div>
           )}
-          {esp32Online ? (
-            <div className="text-orange-400 flex items-center gap-1">
-              <span className="w-2 h-2 rounded-full bg-orange-400 animate-pulse inline-block" />
+          {bleConnected ? (
+            <div className="text-blue-400 flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse inline-block" />
+              BLE подключён
+            </div>
+          ) : esp32Online ? (
+            <div className="text-green-400 flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse inline-block" />
               ESP32 онлайн
             </div>
           ) : (
@@ -296,6 +352,11 @@ const StationsMapComponent = ({ onStationSelect }: StationsMapComponentProps) =>
             </button>
           </motion.div>
         )}
+      </div>
+
+      {/* BLE подключение ESP32 */}
+      <div className="mt-3">
+        <BluetoothConnect onDataReceived={handleBleData} />
       </div>
 
       <StationModal
