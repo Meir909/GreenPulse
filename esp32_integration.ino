@@ -11,11 +11,11 @@
 #include <ArduinoJson.h>
 
 // ===== WiFi =====
-const char* ssid     = "ТУТ_ТВОЙ_WIFI";       // <-- замени
-const char* password = "ТУТ_ТВОЙ_ПАРОЛЬ";      // <-- замени
+const char* ssid     = "BB";       // <-- замени
+const char* password = "Student111";      // <-- замени
 
 // URL твоего сервера на Render (замени на свой)
-const char* serverUrl = "https://ТУТ_ТВОЙ_RENDER_URL.onrender.com/api/sensor-data";
+const char* serverUrl = "https://greenpulse-su2h.onrender.com/api/sensor-data";
 
 // ===== DHT11 =====
 #define DHTPIN  33
