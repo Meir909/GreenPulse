@@ -37,13 +37,17 @@ const MarketSection = () => {
               style={{
                 width: c.size,
                 height: c.size,
-                borderColor: i === 2 ? "hsl(153 100% 50% / 0.6)" : i === 1 ? "hsl(153 100% 50% / 0.3)" : "hsl(153 100% 50% / 0.15)",
+                borderColor: i === 2 ? "hsl(153 100% 50% / 0.9)" : i === 1 ? "hsl(153 100% 50% / 0.6)" : "hsl(153 100% 50% / 0.35)",
                 background: i === 2
-                  ? "hsl(153 100% 50% / 0.1)"
+                  ? "hsl(153 100% 50% / 0.15)"
                   : i === 1
-                  ? "hsl(153 100% 50% / 0.05)"
-                  : "hsl(153 100% 50% / 0.02)",
-                boxShadow: i === 2 ? "0 0 30px hsl(153 100% 50% / 0.15)" : "none",
+                  ? "hsl(153 100% 50% / 0.08)"
+                  : "hsl(153 100% 50% / 0.04)",
+                boxShadow: i === 2
+                  ? "0 0 40px hsl(153 100% 50% / 0.4), 0 0 80px hsl(153 100% 50% / 0.2)"
+                  : i === 1
+                  ? "0 0 30px hsl(153 100% 50% / 0.2)"
+                  : "0 0 20px hsl(153 100% 50% / 0.1)",
               }}
             >
               <span className="font-mono-data text-xs text-primary font-bold">{c.label}</span>

@@ -5,14 +5,14 @@ const members = [
   {
     emoji: "👨‍💻",
     name: "Нурдаулет Мейірбек",
-    role: "Project Lead & Backend",
+    role: "Project Lead & Software Engineer",
     skills: ["Python", "IoT", "Arduino", "Data Analysis"],
   },
   {
-    emoji: "🎨",
+    emoji: "🔧",
     name: "Сапи Бекнұр",
-    role: "Frontend & Design",
-    skills: ["React", "TypeScript", "UI/UX", "Figma"],
+    role: "Hardware Engineer",
+    skills: ["Electronics", "Circuit Design", "Microcontrollers", "IoT"],
   },
 ];
 
