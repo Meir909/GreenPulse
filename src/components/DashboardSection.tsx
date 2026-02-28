@@ -2,41 +2,61 @@ import { motion, useInView } from "framer-motion";
 import { useRef, useState, useEffect } from "react";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, LineChart, Line, Tooltip } from "recharts";
 
-const co2Data = [
-  { time: "0h", value: 0 },
-  { time: "1h", value: -5 },
-  { time: "2h", value: -10 },
-  { time: "3h", value: -15 },
-  { time: "4h", value: -18 },
-];
-
-const biomassData = [
-  { t: 0, od: 0.2 },
-  { t: 1, od: 0.28 },
-  { t: 2, od: 0.35 },
-  { t: 3, od: 0.42 },
-  { t: 4, od: 0.55 },
-  { t: 5, od: 0.61 },
-  { t: 6, od: 0.68 },
-];
+interface SensorData {
+  temperature: number;
+  ph: number;
+  co2_ppm: number;
+  humidity: number;
+  light_intensity: number;
+}
 
 const DashboardSection = () => {
   const ref = useRef(null);
   const inView = useInView(ref, { once: true, margin: "-100px" });
-  const [ph, setPh] = useState(6.0);
-  const [temp, setTemp] = useState(23.8);
+
+  const [sensorData, setSensorData] = useState<SensorData | null>(null);
+  const [offline, setOffline] = useState(false);
+  const [co2History, setCo2History] = useState<{ time: string; value: number }[]>([]);
+  const [lastCo2, setLastCo2] = useState<number | null>(null);
+
+  const fetchData = async () => {
+    try {
+      const res = await fetch("/api/sensor-data");
+      const json = await res.json();
+
+      if (json.status === "offline" || !json.data) {
+        setOffline(true);
+        return;
+      }
+
+      const d: SensorData = json.data;
+      setSensorData(d);
+      setOffline(false);
+
+      // Обновляем историю CO2 (последние 5 точек)
+      setCo2History(prev => {
+        const now = new Date();
+        const label = `${now.getHours()}:${String(now.getMinutes()).padStart(2, "0")}`;
+        const reduction = lastCo2 !== null ? ((lastCo2 - d.co2_ppm) / lastCo2) * 100 : 0;
+        const next = [...prev, { time: label, value: parseFloat(reduction.toFixed(1)) }];
+        return next.slice(-5);
+      });
+      setLastCo2(d.co2_ppm);
+
+    } catch {
+      setOffline(true);
+    }
+  };
 
   useEffect(() => {
-    if (!inView) return;
-    const interval = setInterval(() => {
-      setPh((p) => Math.min(7.6, p + 0.02 + Math.random() * 0.03));
-      setTemp((t) => 24 + Math.sin(Date.now() / 3000) * 0.8);
-    }, 500);
+    fetchData();
+    const interval = setInterval(fetchData, 10000); // обновляем каждые 10 сек
     return () => clearInterval(interval);
-  }, [inView]);
+  }, []);
 
-  // pH gauge
-  const phAngle = ((ph - 0) / 14) * 180;
+  // pH gauge angle
+  const ph = sensorData?.ph ?? 0;
+  const phAngle = ph > 0 ? ((ph - 0) / 14) * 180 : 0;
 
   return (
     <section id="dashboard" className="relative py-24 px-4" ref={ref}>
@@ -53,104 +73,152 @@ const DashboardSection = () => {
           </h2>
         </motion.div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {/* pH Gauge */}
+        {offline ? (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={inView ? { opacity: 1, y: 0 } : {}}
-            transition={{ delay: 0.1, duration: 0.5 }}
-            className="glass rounded-xl p-6 neon-border lg:col-span-2"
+            className="glass rounded-xl p-10 neon-border text-center"
           >
-            <p className="text-sm text-muted-foreground mb-2">pH деңгейі</p>
-            <div className="relative w-48 h-24 mx-auto overflow-hidden">
-              {/* Semicircle bg */}
-              <svg viewBox="0 0 200 100" className="w-full">
-                <path d="M 10 100 A 90 90 0 0 1 190 100" fill="none" stroke="hsl(144 30% 15%)" strokeWidth="12" strokeLinecap="round" />
-                <path
-                  d="M 10 100 A 90 90 0 0 1 190 100"
-                  fill="none"
-                  stroke="url(#phGrad)"
-                  strokeWidth="12"
-                  strokeLinecap="round"
-                  strokeDasharray={`${(phAngle / 180) * 283} 283`}
-                />
-                <defs>
-                  <linearGradient id="phGrad" x1="0" y1="0" x2="1" y2="0">
-                    <stop offset="0%" stopColor="hsl(0,75%,60%)" />
-                    <stop offset="50%" stopColor="hsl(60,75%,60%)" />
-                    <stop offset="100%" stopColor="hsl(153,100%,50%)" />
-                  </linearGradient>
-                </defs>
-              </svg>
+            <div className="text-5xl mb-4">📡</div>
+            <p className="text-xl font-bold text-muted-foreground mb-2">ESP32 офлайн</p>
+            <p className="text-sm text-muted-foreground">
+              Деректер жоқ. ESP32 станциясын қосыңыз.
+            </p>
+            <p className="text-xs text-muted-foreground mt-1 opacity-60">
+              Нет данных. Подключите ESP32 станцию.
+            </p>
+          </motion.div>
+        ) : (
+          <>
+            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {/* pH Gauge */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={inView ? { opacity: 1, y: 0 } : {}}
+                transition={{ delay: 0.1, duration: 0.5 }}
+                className="glass rounded-xl p-6 neon-border lg:col-span-2"
+              >
+                <p className="text-sm text-muted-foreground mb-2">pH деңгейі</p>
+                <div className="relative w-48 h-24 mx-auto overflow-hidden">
+                  <svg viewBox="0 0 200 100" className="w-full">
+                    <path d="M 10 100 A 90 90 0 0 1 190 100" fill="none" stroke="hsl(144 30% 15%)" strokeWidth="12" strokeLinecap="round" />
+                    <path
+                      d="M 10 100 A 90 90 0 0 1 190 100"
+                      fill="none"
+                      stroke="url(#phGrad)"
+                      strokeWidth="12"
+                      strokeLinecap="round"
+                      strokeDasharray={`${(phAngle / 180) * 283} 283`}
+                    />
+                    <defs>
+                      <linearGradient id="phGrad" x1="0" y1="0" x2="1" y2="0">
+                        <stop offset="0%" stopColor="hsl(0,75%,60%)" />
+                        <stop offset="50%" stopColor="hsl(60,75%,60%)" />
+                        <stop offset="100%" stopColor="hsl(153,100%,50%)" />
+                      </linearGradient>
+                    </defs>
+                  </svg>
+                </div>
+                <p className="font-mono-data text-4xl font-bold text-center text-primary">
+                  {sensorData ? sensorData.ph.toFixed(1) : "—"}
+                </p>
+              </motion.div>
+
+              {/* Temperature */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={inView ? { opacity: 1, y: 0 } : {}}
+                transition={{ delay: 0.2, duration: 0.5 }}
+                className="glass rounded-xl p-6 neon-border"
+              >
+                <p className="text-sm text-muted-foreground mb-2">Температура</p>
+                <p className="font-mono-data text-4xl font-bold text-primary">
+                  {sensorData ? `${sensorData.temperature.toFixed(1)}°C` : "—"}
+                </p>
+                <p className="text-xs text-muted-foreground mt-2">Оптималды: 20-25°C</p>
+              </motion.div>
+
+              {/* Status */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={inView ? { opacity: 1, y: 0 } : {}}
+                transition={{ delay: 0.3, duration: 0.5 }}
+                className="glass rounded-xl p-6 neon-border"
+              >
+                <p className="text-sm text-muted-foreground mb-2">Жүйе күйі</p>
+                {sensorData ? (
+                  <>
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="w-3 h-3 rounded-full bg-primary animate-pulse-glow" />
+                      <span className="font-headline font-bold text-primary">Белсенді</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">Барлық датчиктер қалыпты</p>
+                  </>
+                ) : (
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="w-3 h-3 rounded-full bg-gray-500" />
+                    <span className="font-headline font-bold text-gray-500">Жүктелуде...</span>
+                  </div>
+                )}
+              </motion.div>
             </div>
-            <p className="font-mono-data text-4xl font-bold text-center text-primary">{ph.toFixed(1)}</p>
-          </motion.div>
 
-          {/* Temperature */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={inView ? { opacity: 1, y: 0 } : {}}
-            transition={{ delay: 0.2, duration: 0.5 }}
-            className="glass rounded-xl p-6 neon-border"
-          >
-            <p className="text-sm text-muted-foreground mb-2">Температура</p>
-            <p className="font-mono-data text-4xl font-bold text-primary">{temp.toFixed(1)}°C</p>
-            <p className="text-xs text-muted-foreground mt-2">Оптималды: 20-25°C</p>
-          </motion.div>
+            {/* Charts */}
+            <div className="grid md:grid-cols-2 gap-6 mt-6">
+              {/* CO2 chart */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={inView ? { opacity: 1, y: 0 } : {}}
+                transition={{ delay: 0.4, duration: 0.5 }}
+                className="glass rounded-xl p-6 neon-border"
+              >
+                <p className="text-sm text-muted-foreground mb-1">CO₂ (ppm)</p>
+                <p className="font-mono-data text-3xl font-bold text-primary mb-4">
+                  {sensorData ? sensorData.co2_ppm : "—"}
+                </p>
+                {co2History.length > 1 ? (
+                  <ResponsiveContainer width="100%" height={160}>
+                    <BarChart data={co2History}>
+                      <XAxis dataKey="time" tick={{ fill: "hsl(140 15% 55%)", fontSize: 11 }} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fill: "hsl(140 15% 55%)", fontSize: 11 }} axisLine={false} tickLine={false} />
+                      <Bar dataKey="value" fill="hsl(153 100% 50%)" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <p className="text-xs text-muted-foreground text-center py-8">
+                    График 2+ өлшем кейін пайда болады...
+                  </p>
+                )}
+              </motion.div>
 
-          {/* Status */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={inView ? { opacity: 1, y: 0 } : {}}
-            transition={{ delay: 0.3, duration: 0.5 }}
-            className="glass rounded-xl p-6 neon-border"
-          >
-            <p className="text-sm text-muted-foreground mb-2">Жүйе күйі</p>
-            <div className="flex items-center gap-2 mb-2">
-              <span className="w-3 h-3 rounded-full bg-primary animate-pulse-glow" />
-              <span className="font-headline font-bold text-primary">Белсенді</span>
+              {/* Humidity + Light */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={inView ? { opacity: 1, y: 0 } : {}}
+                transition={{ delay: 0.5, duration: 0.5 }}
+                className="glass rounded-xl p-6 neon-border"
+              >
+                <p className="text-sm text-muted-foreground mb-4">Қосымша деректер</p>
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">Ылғалдылық / Влажность</p>
+                    <p className="font-mono-data text-3xl font-bold text-primary">
+                      {sensorData ? `${sensorData.humidity.toFixed(0)}%` : "—"}
+                    </p>
+                    <p className="text-xs text-muted-foreground">Оптималды: 60-80%</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">Жарық / Освещённость</p>
+                    <p className="font-mono-data text-3xl font-bold text-primary">
+                      {sensorData ? `${sensorData.light_intensity} lux` : "—"}
+                    </p>
+                    <p className="text-xs text-muted-foreground">Оптималды: 400-600 lux</p>
+                  </div>
+                </div>
+              </motion.div>
             </div>
-            <p className="text-xs text-muted-foreground">Барлық датчиктер қалыпты</p>
-          </motion.div>
-        </div>
-
-        {/* Charts */}
-        <div className="grid md:grid-cols-2 gap-6 mt-6">
-          {/* CO2 Bar Chart */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={inView ? { opacity: 1, y: 0 } : {}}
-            transition={{ delay: 0.4, duration: 0.5 }}
-            className="glass rounded-xl p-6 neon-border"
-          >
-            <p className="text-sm text-muted-foreground mb-4">CO₂ азаюы (%)</p>
-            <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={co2Data}>
-                <XAxis dataKey="time" tick={{ fill: "hsl(140 15% 55%)", fontSize: 12 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fill: "hsl(140 15% 55%)", fontSize: 12 }} axisLine={false} tickLine={false} />
-                <Bar dataKey="value" fill="hsl(153 100% 50%)" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </motion.div>
-
-          {/* Biomass Line Chart */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={inView ? { opacity: 1, y: 0 } : {}}
-            transition={{ delay: 0.5, duration: 0.5 }}
-            className="glass rounded-xl p-6 neon-border"
-          >
-            <p className="text-sm text-muted-foreground mb-4">Биомасса өсуі (OD)</p>
-            <ResponsiveContainer width="100%" height={200}>
-              <LineChart data={biomassData}>
-                <XAxis dataKey="t" tick={{ fill: "hsl(140 15% 55%)", fontSize: 12 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fill: "hsl(140 15% 55%)", fontSize: 12 }} axisLine={false} tickLine={false} />
-                <Tooltip contentStyle={{ background: "hsl(144 30% 8%)", border: "1px solid hsl(153 100% 50% / 0.3)", borderRadius: 8, color: "#e8f5e9" }} />
-                <Line type="monotone" dataKey="od" stroke="hsl(168 100% 50%)" strokeWidth={2} dot={{ fill: "hsl(153 100% 50%)", r: 4 }} />
-              </LineChart>
-            </ResponsiveContainer>
-          </motion.div>
-        </div>
+          </>
+        )}
       </div>
     </section>
   );
