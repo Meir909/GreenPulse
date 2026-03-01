@@ -33,12 +33,15 @@ const HeroSection = () => {
     return () => clearInterval(interval);
   }, []);
 
-  const cards = [
-    { label: "Температура", value: temperature != null ? `${temperature.toFixed(1)}°C` : "—", live: true },
-    { label: "pH деңгейі",  value: ph != null ? ph.toFixed(1) : "—" },
-    { label: "CO₂ (ppm)",   value: co2 != null ? String(co2) : "—" },
-    { label: "Ылғалдылық",  value: humidity != null ? `${humidity.toFixed(0)}%` : "—" },
+  const allCards = [
+    { label: "Температура", value: temperature != null ? `${temperature.toFixed(1)}°C` : null, live: true },
+    { label: "pH деңгейі",  value: ph != null ? ph.toFixed(1) : null },
+    { label: "CO₂ (ppm)",   value: co2 != null ? String(co2) : null },
+    { label: "Ылғалдылық",  value: humidity != null ? `${humidity.toFixed(0)}%` : null },
   ];
+
+  // Показываем только карточки с реальными данными
+  const cards = allCards.filter(c => c.value !== null);
 
   return (
     <section className="relative min-h-screen flex flex-col items-center justify-center px-4 overflow-hidden">
@@ -65,7 +68,7 @@ const HeroSection = () => {
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.3 }}
-          className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto"
+          className={`grid gap-4 max-w-4xl mx-auto ${cards.length === 1 ? "grid-cols-1 max-w-xs" : cards.length === 2 ? "grid-cols-2 max-w-lg" : "grid-cols-2 md:grid-cols-4"}`}
         >
           {cards.map((card, i) => (
             <div
