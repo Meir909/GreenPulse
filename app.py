@@ -73,14 +73,15 @@ def ai_analyze_sensors():
     """
     global current_sensor_data
     data = request.json
+    sd = current_sensor_data or {}
 
-    temperature = data.get('temperature', current_sensor_data['temperature'])
-    humidity = data.get('humidity', current_sensor_data['humidity'])
-    light_intensity = data.get('light_intensity', current_sensor_data['light_intensity'])
-    co2_ppm = data.get('co2_ppm', current_sensor_data['co2_ppm'])
-    latitude = data.get('latitude', current_sensor_data['latitude'])
-    longitude = data.get('longitude', current_sensor_data['longitude'])
-    satellites = data.get('satellites', current_sensor_data['satellites'])
+    temperature = data.get('temperature') or sd.get('temperature', 22)
+    humidity = data.get('humidity') or sd.get('humidity', 65)
+    light_intensity = data.get('light_intensity') or sd.get('light_intensity', 450)
+    co2_ppm = data.get('co2_ppm') or sd.get('co2_ppm', 420)
+    latitude = data.get('latitude') or sd.get('latitude', 0)
+    longitude = data.get('longitude') or sd.get('longitude', 0)
+    satellites = data.get('satellites') or sd.get('satellites', 0)
 
     prompt = f"""Данные станции GreenPulse:
 • Температура: {temperature}°C (норма 20–25°C)
@@ -136,9 +137,11 @@ def ai_predict_growth():
     Вводишь условия (температура, свет, pH) → ИИ предсказывает
     """
     data = request.json
-    ph = data.get('ph', demo_sensor_data['ph'])
-    temperature = data.get('temperature', demo_sensor_data['temperature'])
-    light_intensity = data.get('light_intensity', demo_sensor_data['light_intensity'])
+    sd = current_sensor_data or {}
+
+    ph = data.get('ph') or sd.get('ph', 7.0)
+    temperature = data.get('temperature') or sd.get('temperature', 22)
+    light_intensity = data.get('light_intensity') or sd.get('light_intensity', 450)
 
     prompt = f"""Данные станции GreenPulse:
 • pH: {ph} (норма 6.5–7.5)
