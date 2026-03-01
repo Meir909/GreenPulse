@@ -34,10 +34,10 @@ const HeroSection = () => {
   }, []);
 
   const cards = [
-    { label: "Температура", value: temperature !== null ? `${temperature.toFixed(1)}°C` : "—", live: true },
-    { label: "pH деңгейі",  value: ph !== null ? ph.toFixed(1) : "—" },
-    { label: "CO₂ (ppm)",   value: co2 !== null ? String(co2) : "—" },
-    { label: "Ылғалдылық",  value: humidity !== null ? `${humidity.toFixed(0)}%` : "—" },
+    { label: "Температура", value: temperature != null ? `${temperature.toFixed(1)}°C` : "—", live: true },
+    { label: "pH деңгейі",  value: ph != null ? ph.toFixed(1) : "—" },
+    { label: "CO₂ (ppm)",   value: co2 != null ? String(co2) : "—" },
+    { label: "Ылғалдылық",  value: humidity != null ? `${humidity.toFixed(0)}%` : "—" },
   ];
 
   return (

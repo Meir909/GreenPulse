@@ -40,7 +40,9 @@ const DashboardSection = () => {
       setCo2History(prev => {
         const now = new Date();
         const label = `${now.getHours()}:${String(now.getMinutes()).padStart(2, "0")}`;
-        const reduction = lastCo2 !== null ? ((lastCo2 - d.co2_ppm) / lastCo2) * 100 : 0;
+        const reduction = (lastCo2 != null && d.co2_ppm != null && lastCo2 !== 0)
+          ? ((lastCo2 - d.co2_ppm) / lastCo2) * 100
+          : 0;
         const next = [...prev, { time: label, value: parseFloat(reduction.toFixed(1)) }];
         return next.slice(-5);
       });
