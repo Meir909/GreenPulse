@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
+import { useTheme } from "next-themes";
 
 const navItems = [
   { href: "#problem", label: "Мәселе" },
@@ -9,11 +10,13 @@ const navItems = [
   { href: "#business", label: "Бизнес" },
   { href: "#team", label: "Команда" },
   { href: "/stations", label: "Станции", isRoute: true },
+  { href: "/admin", label: "Админ", isRoute: true },
 ];
 
 const Navbar = () => {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { theme, setTheme } = useTheme();
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 50);
@@ -35,7 +38,7 @@ const Navbar = () => {
           GreenPulse
         </a>
 
-        {/* Desktop */}
+        {/* Desktop nav links */}
         <div className="hidden md:flex items-center gap-8">
           {navItems.filter(item => !item.isRoute).map((item) => (
             <a
@@ -48,8 +51,33 @@ const Navbar = () => {
           ))}
         </div>
 
-        {/* Right side - Stations button */}
-        <div className="flex items-center gap-4">
+        {/* Right side */}
+        <div className="flex items-center gap-2">
+          {/* Theme toggle */}
+          <button
+            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            className="hidden md:flex items-center justify-center w-9 h-9 rounded-lg glass border border-white/10 hover:border-primary/50 text-muted-foreground hover:text-primary transition-all duration-300"
+            aria-label="Toggle theme"
+          >
+            {theme === "dark" ? (
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="5" strokeWidth="2" />
+                <path strokeLinecap="round" strokeWidth="2" d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
+              </svg>
+            ) : (
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+              </svg>
+            )}
+          </button>
+
+          <a
+            href="/admin"
+            className="hidden md:inline-flex px-3 py-2 rounded-lg glass border border-white/10 hover:border-yellow-400/50 text-muted-foreground hover:text-yellow-400 text-sm transition-all duration-300"
+          >
+            ⚙️ Админ
+          </a>
+
           <a
             href="/stations"
             className="hidden md:inline-flex px-4 py-2 rounded-lg bg-gradient-to-r from-cyan-600 to-green-600 hover:from-cyan-700 hover:to-green-700 text-white text-sm font-medium transition-all duration-300 border border-cyan-400/50 hover:border-cyan-300"
@@ -95,6 +123,12 @@ const Navbar = () => {
               {item.label}
             </a>
           ))}
+          <button
+            onClick={() => { setTheme(theme === "dark" ? "light" : "dark"); setMobileOpen(false); }}
+            className="text-sm text-muted-foreground hover:text-primary text-left"
+          >
+            {theme === "dark" ? "☀️ Светлая тема" : "🌙 Тёмная тема"}
+          </button>
         </motion.div>
       )}
     </motion.nav>

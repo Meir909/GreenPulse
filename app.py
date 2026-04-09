@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
+from flask_socketio import SocketIO, emit
 import os
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -8,7 +9,9 @@ from datetime import datetime
 load_dotenv()
 
 app = Flask(__name__)
-CORS(app)
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'greenpulse-secret-key')
+CORS(app, resources={r"/*": {"origins": "*"}})
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet', logger=False, engineio_logger=False)
 
 # Инициализируем OpenAI клиент с обработкой ошибок
 try:
@@ -19,8 +22,18 @@ except Exception as e:
     client = None
 
 # Хранилище данных датчиков
-sensor_history = []
-current_sensor_data = None  # None = ESP32 ещё не подключалась
+sensor_history = []          # Последние 500 показаний
+gps_track = []               # История GPS координат для трека
+current_sensor_data = None   # None = ESP32 ещё не подключалась
+
+# Поля которые принимаем от ESP32
+SENSOR_FIELDS = [
+    'station_id', 'station_name',
+    'temperature', 'humidity',
+    'latitude', 'longitude', 'accuracy', 'satellites', 'altitude', 'gps_valid',
+    'ph', 'co2_ppm', 'co_ppm',           # co_ppm = MQ-7 угарный газ
+    'light_intensity', 'water_level',
+]
 
 @app.route('/api/sensor-data', methods=['GET', 'POST'])
 def sensor_data():
@@ -28,7 +41,7 @@ def sensor_data():
     GET: получить текущие данные датчиков с ESP32
     POST: ESP32 отправляет реальные данные сюда
     """
-    global current_sensor_data
+    global current_sensor_data, sensor_history
 
     if request.method == 'POST':
         data = request.json
@@ -40,22 +53,39 @@ def sensor_data():
         updated['timestamp'] = datetime.now().isoformat()
 
         # Обновляем только те поля, которые не None (игнорируем null)
-        fields = ['station_id', 'station_name', 'temperature', 'humidity',
-                  'latitude', 'longitude', 'accuracy', 'satellites', 'altitude',
-                  'ph', 'co2_ppm', 'light_intensity', 'water_level', 'gps_valid']
-
-        for field in fields:
+        for field in SENSOR_FIELDS:
             value = data.get(field)
             if value is not None:
                 updated[field] = value
 
         current_sensor_data = updated
 
+        # Храним историю (последние 500)
         sensor_history.append(current_sensor_data.copy())
+        if len(sensor_history) > 500:
+            sensor_history.pop(0)
 
-        print(f"\n📊 Данные с ESP32: T={current_sensor_data.get('temperature')}°C "
-              f"H={current_sensor_data.get('humidity')}% "
-              f"GPS={current_sensor_data.get('latitude')},{current_sensor_data.get('longitude')}")
+        # Сохраняем GPS трек (последние 500 точек)
+        if updated.get('gps_valid') and updated.get('latitude') and updated.get('longitude'):
+            lat = updated['latitude']
+            lng = updated['longitude']
+            # Добавляем точку только если она отличается от предыдущей (минимум 5м)
+            if not gps_track or abs(gps_track[-1]['lat'] - lat) > 0.00005 or abs(gps_track[-1]['lng'] - lng) > 0.00005:
+                gps_track.append({
+                    'lat': lat,
+                    'lng': lng,
+                    'timestamp': updated['timestamp']
+                })
+                if len(gps_track) > 500:
+                    gps_track.pop(0)
+
+        print(f"\n📊 ESP32: T={updated.get('temperature')}°C "
+              f"H={updated.get('humidity')}% "
+              f"CO={updated.get('co_ppm')} ppm "
+              f"GPS={updated.get('latitude')},{updated.get('longitude')}")
+
+        # Уведомляем всех WebSocket клиентов о новых данных
+        socketio.emit('sensor_update', current_sensor_data)
 
         return jsonify({'status': 'received', 'data': current_sensor_data}), 201
 
@@ -65,11 +95,94 @@ def sensor_data():
 
     return jsonify({'status': 'online', 'data': current_sensor_data}), 200
 
+
+@app.route('/api/gps-track', methods=['GET'])
+def get_gps_track():
+    """Возвращает историю GPS координат для отображения трека на карте"""
+    return jsonify({
+        'status': 'ok',
+        'track': gps_track,
+        'count': len(gps_track)
+    }), 200
+
+
+@app.route('/api/gps-track', methods=['DELETE'])
+def clear_gps_track():
+    """Очищает GPS трек"""
+    global gps_track
+    gps_track = []
+    socketio.emit('track_cleared', {})
+    return jsonify({'status': 'ok', 'message': 'Трек очищен'}), 200
+
+
+@app.route('/api/sensor-history', methods=['GET'])
+def get_sensor_history():
+    """Возвращает историю показаний (последние 100)"""
+    limit = min(int(request.args.get('limit', 100)), 500)
+    return jsonify({
+        'status': 'ok',
+        'history': sensor_history[-limit:],
+        'total': len(sensor_history)
+    }), 200
+
+
+@app.route('/api/co2-absorbed', methods=['GET'])
+def co2_absorbed():
+    """
+    Рассчитывает суммарное поглощение CO2 с момента запуска.
+    Биореактор GreenPulse поглощает до 38 кг CO2/год = ~4.34 г/час.
+    Используем данные из истории для оценки.
+    """
+    if len(sensor_history) < 2:
+        return jsonify({'status': 'ok', 'grams': 0, 'records': len(sensor_history)}), 200
+
+    total_grams = 0.0
+    for i in range(1, len(sensor_history)):
+        prev = sensor_history[i - 1]
+        curr = sensor_history[i]
+
+        # Вычисляем эффективность по температуре
+        temp = curr.get('temperature') or 22
+        if temp >= 40 or temp < 0:
+            eff = 0
+        elif temp < 10:
+            eff = 0.02
+        elif temp < 15:
+            eff = 0.15
+        elif temp < 20:
+            eff = 0.45
+        elif temp <= 30:
+            eff = 1.0
+        elif temp <= 35:
+            eff = 0.5
+        else:
+            eff = 0.1
+
+        # Разница по времени в часах
+        try:
+            from datetime import datetime
+            t1 = datetime.fromisoformat(prev.get('timestamp', ''))
+            t2 = datetime.fromisoformat(curr.get('timestamp', ''))
+            hours = (t2 - t1).total_seconds() / 3600
+            hours = min(hours, 1.0)  # cap at 1 hour per record
+        except Exception:
+            hours = 0.0083  # ~30 seconds default
+
+        # 38 кг/год / (365 * 24) часов = 4.34 г/час при 100% эффективности
+        total_grams += eff * 4.34 * hours
+
+    return jsonify({
+        'status': 'ok',
+        'grams': round(total_grams, 2),
+        'records': len(sensor_history)
+    }), 200
+
+
 @app.route('/api/ai-analyze-sensors', methods=['POST'])
 def ai_analyze_sensors():
     """
-    ИИ анализирует данные датчиков (температура, влажность, GPS)
-    и дает рекомендации для оптимальной работы системы
+    ИИ анализирует данные датчиков и дает рекомендации
+    Поддерживает: температура, влажность, свет, CO2, CO (MQ-7), GPS
     """
     global current_sensor_data
     data = request.json
@@ -79,16 +192,19 @@ def ai_analyze_sensors():
     humidity = data.get('humidity') or sd.get('humidity', 65)
     light_intensity = data.get('light_intensity') or sd.get('light_intensity', 450)
     co2_ppm = data.get('co2_ppm') or sd.get('co2_ppm', 420)
+    co_ppm = data.get('co_ppm') or sd.get('co_ppm', 0)
     latitude = data.get('latitude') or sd.get('latitude', 0)
     longitude = data.get('longitude') or sd.get('longitude', 0)
     satellites = data.get('satellites') or sd.get('satellites', 0)
+
+    co_line = f"• CO (угарный газ): {co_ppm} ppm (норма < 50 ppm)\n" if co_ppm else ""
 
     prompt = f"""Данные станции GreenPulse:
 • Температура: {temperature}°C (норма 20–25°C)
 • Влажность: {humidity}% (норма 60–80%)
 • Свет: {light_intensity} люкс (норма 400–600)
 • CO2: {co2_ppm} ppm (норма 400–450)
-
+{co_line}
 Ответь строго в этом формате, каждый пункт с новой строки, без лишних слов:
 
 🟢 Статус: [Оптимально / Хорошо / Требует внимания]
@@ -107,7 +223,7 @@ def ai_analyze_sensors():
                 {"role": "system", "content": "Ты эксперт-консультант GreenPulse. Строго следуй формату ответа. Только русский язык, кратко и по делу."},
                 {"role": "user", "content": prompt}
             ],
-            max_tokens=180,
+            max_tokens=200,
             temperature=0.4
         )
 
@@ -121,6 +237,7 @@ def ai_analyze_sensors():
                 'humidity': humidity,
                 'light_intensity': light_intensity,
                 'co2_ppm': co2_ppm,
+                'co_ppm': co_ppm,
                 'latitude': latitude,
                 'longitude': longitude,
                 'satellites': satellites
@@ -130,11 +247,11 @@ def ai_analyze_sensors():
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
+
 @app.route('/api/ai-predict-growth', methods=['POST'])
 def ai_predict_growth():
     """
     ИИ предсказывает сколько CO2 поглотится за час
-    Вводишь условия (температура, свет, pH) → ИИ предсказывает
     """
     data = request.json
     sd = current_sensor_data or {}
@@ -187,11 +304,11 @@ def ai_predict_growth():
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
+
 @app.route('/api/chatbot', methods=['POST'])
 def chatbot():
     """
     Чат-бот отвечает на вопросы про GreenPulse, балдыри, экологию
-    Поддерживает историю сообщений для контекстного диалога
     """
     data = request.json
     user_message = data.get('message', '')
@@ -212,11 +329,18 @@ def chatbot():
 - Стоимость: $500-800 за единицу
 - Бизнес-модели: B2G (школы, муниципалитеты), B2B (компании ESG), Гранты, Биомасса
 
+🔬 ДАТЧИКИ СИСТЕМЫ:
+- Температура и влажность (DHT22/SHT30)
+- CO2 (MH-Z19 или аналог) — поглощение балдырями
+- CO — угарный газ MQ-7 (норма < 50 ppm, опасно > 200 ppm)
+- pH воды (норма 6.5–7.5)
+- Освещённость (норма 400–600 люкс)
+- GPS (отслеживание местоположения скамейки)
+
 🧬 О БАЛДЫРЯХ (Baldyria):
 - Микроорганизм, который поглощает CO2 через фотосинтез
 - Растет в биореакторе при pH 6.5-7.5 и температуре 20-25°C
 - Требует света для интенсивного фотосинтеза
-- Скорость роста зависит от условий окружающей среды
 
 📊 ОПТИМАЛЬНЫЕ УСЛОВИЯ:
 - Температура: 20-25°C
@@ -224,29 +348,24 @@ def chatbot():
 - pH: 6.5-7.5
 - Свет: 400-600 люкс
 - CO2: 400-450 ppm
+- CO (угарный газ): < 50 ppm
 
 💡 СТИЛЬ ОТВЕТОВ:
 - Кратко и информативно (2-3 предложения за раз)
 - На русском языке
 - Используй эмодзи для наглядности
-- Будь дружелюбным консультантом
-- Если не знаешь - честно скажи и предложи альтернативу
-- Поддерживай контекст предыдущих сообщений в диалоге"""
+- Будь дружелюбным консультантом"""
 
     try:
         if not client:
             return jsonify({'status': 'error', 'message': 'OpenAI клиент не доступен'}), 500
 
-        # Формируем сообщения с историей
         messages = [{"role": "system", "content": system_prompt}]
 
-        # Добавляем историю диалога
         if history and len(history) > 0:
-            # Ограничиваем историю последними 10 сообщениями для экономии токенов
             recent_history = history[-10:]
             messages.extend(recent_history)
 
-        # Добавляем текущее сообщение пользователя
         messages.append({"role": "user", "content": user_message})
 
         response = client.chat.completions.create(
@@ -268,49 +387,74 @@ def chatbot():
         print(f"❌ Chatbot error: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
+
 @app.route('/api/health', methods=['GET'])
 def health():
     """Проверка что сервер работает"""
-    return jsonify({'status': 'ok', 'message': 'GreenPulse API работает'}), 200
+    return jsonify({
+        'status': 'ok',
+        'message': 'GreenPulse API работает',
+        'esp32_connected': current_sensor_data is not None,
+        'gps_track_points': len(gps_track),
+        'history_records': len(sensor_history)
+    }), 200
 
+
+# WebSocket события
+@socketio.on('connect')
+def on_connect():
+    print(f"🔌 WebSocket клиент подключился")
+    # Сразу отправляем текущие данные новому клиенту
+    if current_sensor_data:
+        emit('sensor_update', current_sensor_data)
+
+
+@socketio.on('disconnect')
+def on_disconnect():
+    print(f"🔌 WebSocket клиент отключился")
+
+
+@socketio.on('request_track')
+def on_request_track():
+    """Клиент запрашивает полный GPS трек"""
+    emit('full_track', {'track': gps_track})
+
+
+# Статические файлы React
 @app.route('/')
 def index():
-    """Главная страница - Serve React index.html"""
     dist_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'dist')
     if os.path.exists(os.path.join(dist_path, 'index.html')):
         return send_from_directory(dist_path, 'index.html')
     else:
         return jsonify({'error': 'React build not found. Run: npm run build'}), 503
 
+
 @app.route('/assets/<path:filename>')
 def serve_assets(filename):
-    """Serve static assets from React build"""
     dist_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'dist')
     return send_from_directory(os.path.join(dist_path, 'assets'), filename)
 
+
 @app.route('/<path:filename>')
 def static_files(filename):
-    """Serve static files from React build (CSS, JS, etc.)"""
     dist_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'dist')
     file_path = os.path.join(dist_path, filename)
 
-    # Check if file exists in dist directory
     if os.path.exists(file_path) and os.path.isfile(file_path):
         return send_from_directory(dist_path, filename)
 
-    # For React Router - serve index.html for all non-API routes
-    # But only if it doesn't look like a specific file request
-    if not any(filename.startswith(prefix) for prefix in ['api/', 'assets/']):
+    if not any(filename.startswith(prefix) for prefix in ['api/', 'assets/', 'socket.io']):
         index_path = os.path.join(dist_path, 'index.html')
         if os.path.exists(index_path):
             return send_from_directory(dist_path, 'index.html')
 
     return jsonify({'error': f'File not found: {filename}'}), 404
 
+
 if __name__ == '__main__':
-    # Для локального развития
     port = int(os.getenv('PORT', 5000))
     debug = os.getenv('FLASK_ENV') == 'development'
-
-    # Render использует PORT переменную
-    app.run(debug=debug, host='0.0.0.0', port=port)
+    print(f"🚀 GreenPulse сервер запускается на порту {port}")
+    print(f"📡 WebSocket поддержка: включена (eventlet)")
+    socketio.run(app, debug=debug, host='0.0.0.0', port=port, allow_unsafe_werkzeug=True)

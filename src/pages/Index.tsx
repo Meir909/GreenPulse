@@ -5,12 +5,15 @@ import WhatIsGreenpulseSection from "@/components/WhatIsGreenpulseSection";
 import ProblemSection from "@/components/ProblemSection";
 import SolutionSection from "@/components/SolutionSection";
 import DashboardSection from "@/components/DashboardSection";
+import Co2CounterSection from "@/components/Co2CounterSection";
+import HistoricalSection from "@/components/HistoricalSection";
 import DataDashboardSection from "@/components/DataDashboardSection";
 import CityRankingSection from "@/components/CityRankingSection";
 import ESGAnalyticsSection from "@/components/ESGAnalyticsSection";
 import APIIntegrationSection from "@/components/APIIntegrationSection";
 import OpenDataSection from "@/components/OpenDataSection";
 import UseCasesSection from "@/components/UseCasesSection";
+import QRSection from "@/components/QRSection";
 import CalculatorSection from "@/components/CalculatorSection";
 import ComparisonSection from "@/components/ComparisonSection";
 import BusinessSection from "@/components/BusinessSection";
@@ -34,6 +37,8 @@ const Index = () => {
 
       {/* Platform Features & Capabilities */}
       <DashboardSection />
+      <Co2CounterSection />
+      <HistoricalSection />
       <DataDashboardSection />
       <CityRankingSection />
 
@@ -44,6 +49,9 @@ const Index = () => {
 
       {/* Application & Use Cases */}
       <UseCasesSection />
+
+      {/* Quick Access */}
+      <QRSection />
 
       {/* Additional Content */}
       <CalculatorSection />

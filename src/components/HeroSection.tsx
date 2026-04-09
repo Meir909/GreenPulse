@@ -1,42 +1,20 @@
-import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
+import { useSensorSocket } from "@/hooks/useSensorSocket";
 
 const HeroSection = () => {
-  const [temperature, setTemperature] = useState<number | null>(null);
-  const [ph, setPh] = useState<number | null>(null);
-  const [co2, setCo2] = useState<number | null>(null);
-  const [humidity, setHumidity] = useState<number | null>(null);
-  const [offline, setOffline] = useState(false);
+  const { sensorData, connected, offline } = useSensorSocket();
 
-  const fetchData = async () => {
-    try {
-      const res = await fetch("/api/sensor-data");
-      const json = await res.json();
-      if (json.status === "offline" || !json.data) {
-        setOffline(true);
-        return;
-      }
-      const d = json.data;
-      setTemperature(d.temperature);
-      setPh(d.ph);
-      setCo2(d.co2_ppm);
-      setHumidity(d.humidity);
-      setOffline(false);
-    } catch {
-      setOffline(true);
-    }
-  };
-
-  useEffect(() => {
-    fetchData();
-    const interval = setInterval(fetchData, 10000);
-    return () => clearInterval(interval);
-  }, []);
+  const temperature = sensorData?.temperature ?? null;
+  const ph         = sensorData?.ph ?? null;
+  const co2        = sensorData?.co2_ppm ?? null;
+  const humidity   = sensorData?.humidity ?? null;
+  const coPpm      = sensorData?.co_ppm ?? null;
 
   const allCards = [
-    { label: "Температура", value: temperature != null ? `${temperature.toFixed(1)}°C` : null, live: true },
+    { label: "Температура", value: temperature != null ? `${temperature.toFixed(1)}°C` : null },
     { label: "pH деңгейі",  value: ph != null ? ph.toFixed(1) : null },
     { label: "CO₂ (ppm)",   value: co2 != null ? String(co2) : null },
+    { label: "CO (MQ-7)",   value: coPpm != null ? `${coPpm.toFixed(0)} ppm` : null },
     { label: "Ылғалдылық",  value: humidity != null ? `${humidity.toFixed(0)}%` : null },
   ];
 
@@ -78,8 +56,8 @@ const HeroSection = () => {
               {i === 0 && (
                 <div className="absolute top-2 right-2 flex items-center gap-1.5">
                   <span className={`w-2 h-2 rounded-full ${offline ? "bg-gray-500" : "bg-primary animate-pulse-glow"}`} />
-                  <span className={`text-[10px] font-mono uppercase tracking-wider ${offline ? "text-gray-500" : "text-primary"}`}>
-                    {offline ? "Offline" : "Live"}
+                  <span className={`text-[10px] font-mono uppercase tracking-wider ${offline ? "text-gray-500" : connected ? "text-primary" : "text-yellow-400"}`}>
+                    {offline ? "Offline" : connected ? "WS Live" : "Live"}
                   </span>
                 </div>
               )}
