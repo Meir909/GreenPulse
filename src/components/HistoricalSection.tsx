@@ -100,69 +100,69 @@ const HistoricalSection = () => {
           transition={{ duration: 0.6 }}
           className="text-center mb-12"
         >
-          <p className="text-sm uppercase tracking-widest text-primary mb-3 font-mono-data">История данных</p>
-          <h2 className="font-headline text-4xl md:text-5xl font-bold text-foreground">
-            📈 <span className="text-gradient">Исторические графики</span>
+          <p className="text-xs uppercase tracking-widest text-[#00ff88] mb-3 font-mono-data">История данных</p>
+          <h2 className="font-display text-4xl md:text-5xl font-bold text-white">
+            <span className="bg-gradient-to-r from-[#00ff88] to-[#00d4ff] bg-clip-text text-transparent">Исторические графики</span>
           </h2>
         </motion.div>
 
         {/* Controls */}
         <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
-          <div className="flex gap-2">
+          <div className="flex gap-1.5">
             {RANGES.map(r => (
               <button
                 key={r.value}
                 onClick={() => setRange(r.value)}
-                className={`px-3 py-1.5 rounded-lg text-sm font-mono-data transition-all ${
+                className={`px-3 py-1.5 rounded-xl text-sm font-mono-data transition-all ${
                   range === r.value
-                    ? "bg-primary text-black font-bold"
-                    : "glass border border-white/10 text-muted-foreground hover:text-primary hover:border-primary/40"
+                    ? "bg-[#00ff88] text-black font-bold"
+                    : "glass-card text-white/40 hover:text-[#00ff88] hover:border-[rgba(0,255,136,0.3)]"
                 }`}
               >
                 {r.label}
               </button>
             ))}
           </div>
-          <div className="flex items-center gap-3">
-            <span className="text-xs text-muted-foreground">{filtered.length} точек</span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-white/25 font-mono-data">{filtered.length} точек</span>
             <button
               onClick={fetchHistory}
               disabled={loading}
-              className="px-3 py-1.5 rounded-lg text-sm glass border border-white/10 text-muted-foreground hover:text-primary hover:border-primary/40 transition-all"
+              className="px-3 py-1.5 rounded-xl text-xs glass-card text-white/40 hover:text-[#00ff88] transition-all font-mono-data"
             >
-              {loading ? "⟳" : "🔄 Обновить"}
+              {loading ? "↻" : "↻ Обновить"}
             </button>
             <button
               onClick={() => exportCSV(filtered)}
               disabled={!filtered.length}
-              className="px-3 py-1.5 rounded-lg text-sm glass border border-green-500/30 text-green-400 hover:bg-green-500/10 transition-all disabled:opacity-40"
+              className="px-3 py-1.5 rounded-xl text-xs glass-card border border-[rgba(0,255,136,0.2)] text-[#00ff88] hover:bg-[rgba(0,255,136,0.08)] transition-all disabled:opacity-30 font-mono-data"
             >
-              📥 CSV
+              ↓ CSV
             </button>
           </div>
         </div>
 
         {!filtered.length ? (
-          <div className="glass rounded-xl p-10 neon-border text-center">
-            <p className="text-muted-foreground">
+          <div className="glass-card rounded-2xl p-10 text-center">
+            <p className="text-white/35 font-body">
               {history.length === 0
                 ? "Нет данных. ESP32 ещё не подключалась."
                 : `Нет данных за выбранный период. Всего записей: ${history.length}`}
             </p>
           </div>
         ) : (
-          <div className="grid md:grid-cols-2 gap-6">
+          <div className="grid md:grid-cols-2 gap-5">
             {/* Temperature & Humidity */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: 0.1 }}
-              className="glass rounded-xl neon-border overflow-hidden"
+              className="glass-card rounded-2xl overflow-hidden"
             >
-              <div className="h-1 bg-gradient-to-r from-orange-500 to-blue-500" />
+              <div className="h-0.5 bg-gradient-to-r from-[#f97316] to-[#00d4ff]" />
               <div className="p-5">
-                <p className="text-sm text-muted-foreground mb-4">🌡️ Температура и влажность</p>
+                <p className="text-sm text-white/40 mb-4 font-body">Температура и влажность</p>
                 <ResponsiveContainer width="100%" height={200}>
                   <LineChart data={chartData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(144 20% 15%)" />
@@ -185,11 +185,11 @@ const HistoricalSection = () => {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: 0.2 }}
-              className="glass rounded-xl neon-border overflow-hidden"
+              className="glass-card rounded-2xl overflow-hidden"
             >
-              <div className="h-1 bg-gradient-to-r from-primary to-cyan-400" />
+              <div className="h-0.5 bg-gradient-to-r from-[#00ff88] to-[#00d4ff]" />
               <div className="p-5">
-                <p className="text-sm text-muted-foreground mb-4">💨 CO₂ (ppm)</p>
+                <p className="text-sm text-white/40 mb-4 font-body">CO₂ (ppm)</p>
                 <ResponsiveContainer width="100%" height={200}>
                   <AreaChart data={chartData}>
                     <defs>
@@ -216,11 +216,11 @@ const HistoricalSection = () => {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: 0.3 }}
-              className="glass rounded-xl neon-border overflow-hidden"
+              className="glass-card rounded-2xl overflow-hidden"
             >
-              <div className="h-1 bg-gradient-to-r from-red-500 to-orange-400" />
+              <div className="h-0.5 bg-gradient-to-r from-[#ef4444] to-[#f97316]" />
               <div className="p-5">
-                <p className="text-sm text-muted-foreground mb-4">⚠️ CO угарный газ MQ-7 (ppm)</p>
+                <p className="text-sm text-white/40 mb-4 font-body">CO угарный газ MQ-7 (ppm)</p>
                 <ResponsiveContainer width="100%" height={200}>
                   <AreaChart data={chartData}>
                     <defs>
@@ -249,11 +249,11 @@ const HistoricalSection = () => {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: 0.4 }}
-              className="glass rounded-xl neon-border overflow-hidden"
+              className="glass-card rounded-2xl overflow-hidden"
             >
-              <div className="h-1 bg-gradient-to-r from-green-500 to-emerald-400" />
+              <div className="h-0.5 bg-gradient-to-r from-[#00ff88] to-[#7c3aed]" />
               <div className="p-5">
-                <p className="text-sm text-muted-foreground mb-4">🧪 pH воды</p>
+                <p className="text-sm text-white/40 mb-4 font-body">pH воды</p>
                 <ResponsiveContainer width="100%" height={200}>
                   <LineChart data={chartData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(144 20% 15%)" />

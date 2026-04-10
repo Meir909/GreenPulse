@@ -1,12 +1,13 @@
 import { motion, useInView } from "framer-motion";
 import { useRef } from "react";
+import { Sprout, Wind, Leaf, Droplets, CheckCircle2 } from "lucide-react";
 
 const steps = [
-  { emoji: "🌱", title: "Балдыр өсіру", desc: "Growing algae culture" },
-  { emoji: "🫧", title: "Ластанған ауа кіреді", desc: "Polluted air enters" },
-  { emoji: "🦠", title: "CO₂ сіңіреді", desc: "Algae absorbs CO₂" },
-  { emoji: "💧", title: "Сорғы айналдырады", desc: "Pump circulates" },
-  { emoji: "✅", title: "Таза ауа шығады", desc: "Clean air exits" },
+  { Icon: Sprout,       title: "Балдыр өсіру",        desc: "Growing algae culture", color: "#00ff88" },
+  { Icon: Wind,         title: "Ластанған ауа кіреді", desc: "Polluted air enters",   color: "#f97316" },
+  { Icon: Leaf,         title: "CO₂ сіңіреді",         desc: "Algae absorbs CO₂",     color: "#00d4ff" },
+  { Icon: Droplets,     title: "Сорғы айналдырады",    desc: "Pump circulates",       color: "#7c3aed" },
+  { Icon: CheckCircle2, title: "Таза ауа шығады",       desc: "Clean air exits",       color: "#00ff88" },
 ];
 
 const SolutionSection = () => {
@@ -16,56 +17,68 @@ const SolutionSection = () => {
   return (
     <section id="solution" className="relative py-24 px-4" ref={ref}>
       <div className="container mx-auto max-w-6xl">
+
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={inView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.6 }}
           className="text-center mb-16"
         >
-          <p className="text-sm uppercase tracking-widest text-primary mb-3 font-mono-data">Шешім</p>
-          <h2 className="font-headline text-4xl md:text-5xl font-bold text-foreground mb-4">
-            Қалай <span className="text-gradient">жұмыс істейді?</span>
+          <p className="text-xs uppercase tracking-widest text-[#00ff88] mb-3 font-mono-data">Шешім</p>
+          <h2 className="font-display text-4xl md:text-5xl font-bold text-white mb-4">
+            Қалай{" "}
+            <span className="bg-gradient-to-r from-[#00ff88] to-[#00d4ff] bg-clip-text text-transparent">
+              жұмыс істейді?
+            </span>
           </h2>
         </motion.div>
 
         {/* Steps */}
-        <div className="relative flex flex-col md:flex-row items-center justify-between gap-4 md:gap-0 mb-16">
-          {/* Connection line (desktop) */}
-          <div className="hidden md:block absolute top-1/2 left-[10%] right-[10%] h-px bg-gradient-to-r from-primary/50 via-primary to-primary/50" />
-
-          {steps.map((step, i) => (
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-16">
+          {steps.map(({ Icon, title, desc, color }, i) => (
             <motion.div
               key={i}
-              initial={{ opacity: 0, y: 30 }}
+              initial={{ opacity: 0, y: 20 }}
               animate={inView ? { opacity: 1, y: 0 } : {}}
-              transition={{ duration: 0.5, delay: i * 0.15 }}
-              className="relative z-10 glass rounded-xl p-5 text-center w-full md:w-44 neon-border hover:scale-105 transition-transform duration-300"
+              transition={{ duration: 0.5, delay: i * 0.1 }}
+              className="glass-card rounded-2xl p-5 text-center relative"
             >
-              <div className="text-4xl mb-3">{step.emoji}</div>
-              <p className="font-headline font-bold text-sm text-foreground mb-1">{step.title}</p>
-              <p className="text-xs text-muted-foreground">{step.desc}</p>
-              <div className="absolute -top-3 -left-3 w-7 h-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold font-mono-data">
+              <div
+                className="absolute -top-2.5 -right-2.5 w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold font-mono-data text-black"
+                style={{ background: color }}
+              >
                 {i + 1}
               </div>
+              <div
+                className="w-10 h-10 rounded-xl mx-auto mb-3 flex items-center justify-center"
+                style={{ background: `${color}18`, border: `1px solid ${color}30` }}
+              >
+                <Icon size={18} style={{ color }} />
+              </div>
+              <p className="font-display font-bold text-xs text-white mb-1 leading-tight">{title}</p>
+              <p className="text-[10px] text-white/30 font-body">{desc}</p>
             </motion.div>
           ))}
         </div>
 
-        {/* Chemical formula */}
+        {/* Formula */}
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={inView ? { opacity: 1, scale: 1 } : {}}
-          transition={{ duration: 0.8, delay: 0.8 }}
-          className="text-center glass rounded-xl p-8 max-w-2xl mx-auto neon-border"
+          transition={{ duration: 0.7, delay: 0.6 }}
+          className="glass-card rounded-2xl p-8 max-w-2xl mx-auto text-center"
         >
-          <p className="text-sm text-muted-foreground mb-3 uppercase tracking-wider">Фотосинтез реакциясы</p>
-          <p className="font-mono-data text-xl md:text-2xl text-primary font-bold">
+          <p className="text-xs text-white/25 mb-3 uppercase tracking-widest font-mono-data">
+            Фотосинтез реакциясы
+          </p>
+          <p className="font-mono-data text-xl md:text-2xl text-[#00ff88] font-bold tracking-wide">
             6CO₂ + 6H₂O → C₆H₁₂O₆ + 6O₂
           </p>
-          <p className="text-xs text-muted-foreground mt-3">
+          <p className="text-xs text-white/35 mt-3 font-body">
             Микробалдырлар CO₂-ні сіңіріп, O₂ шығарады
           </p>
         </motion.div>
+
       </div>
     </section>
   );
