@@ -1,13 +1,12 @@
-import { motion, useInView, AnimatePresence } from "framer-motion";
-import { useRef, useState, useEffect, useCallback } from "react";
-import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, LineChart, Line } from "recharts";
+import { motion, useInView } from "framer-motion";
+import { useRef, useState, useEffect } from "react";
+import { Thermometer, Droplets, Wind, FlaskConical, Activity, Maximize2, Minimize2, Leaf } from "lucide-react";
+import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, AreaChart, Area } from "recharts";
 import { useSensorSocket } from "@/hooks/useSensorSocket";
 import { calculateAQI } from "@/lib/aqi";
 
-// Вычисляет эффективность фотосинтеза (0–1) по температуре
 function photoEfficiency(temp: number): number {
-  if (temp >= 40) return 0;
-  if (temp < 0)   return 0;
+  if (temp >= 40 || temp < 0) return 0;
   if (temp < 10)  return 0.02;
   if (temp < 15)  return 0.15;
   if (temp < 20)  return 0.45;
@@ -16,73 +15,16 @@ function photoEfficiency(temp: number): number {
   return 0.1;
 }
 
-function algaeStatus(temp: number): { label: string; color: string; hint: string } {
-  if (temp >= 40) return { label: "Қауіп! Балдыр өледі", color: "text-red-500",    hint: "Температура > 40°C — гибель клеток" };
-  if (temp < 0)   return { label: "Мұз! Жүйе бұзылды",  color: "text-red-500",    hint: "Вода замерзает — клетки разрушаются" };
-  if (temp < 10)  return { label: "Қауіпті зона",        color: "text-orange-500", hint: "Клетки повреждаются" };
-  if (temp < 15)  return { label: "Ұйқы режимі",         color: "text-yellow-500", hint: "Минимальный фотосинтез" };
-  if (temp < 20)  return { label: "Баяу режим",           color: "text-yellow-400", hint: "Фотосинтез замедлен" };
-  if (temp <= 30) return { label: "Оптималды",            color: "text-primary",    hint: "Максимальное поглощение CO₂" };
-  if (temp <= 35) return { label: "Стресс",               color: "text-orange-400", hint: "Фотосинтез снижается" };
-  return           { label: "Өте қауіпті",               color: "text-red-400",    hint: "Балдыр стрессует, скоро погибнет" };
-}
-
-function coStatus(co: number): { label: string; color: string; bg: string } {
-  if (co < 10)   return { label: "Чистый",       color: "text-primary",   bg: "from-green-500/20" };
-  if (co < 50)   return { label: "Норма",         color: "text-primary",   bg: "from-green-500/20" };
-  if (co < 100)  return { label: "Повышен",       color: "text-yellow-400", bg: "from-yellow-500/20" };
-  if (co < 200)  return { label: "Опасно",        color: "text-orange-400", bg: "from-orange-500/20" };
-  return           { label: "Критично!",          color: "text-red-500",   bg: "from-red-500/20" };
+function algaeStatus(temp: number): { label: string; color: string } {
+  if (temp >= 40 || temp < 0) return { label: "Критично", color: "#ef4444" };
+  if (temp < 10)  return { label: "Қауіп зона",  color: "#f97316" };
+  if (temp < 20)  return { label: "Баяу режим",  color: "#eab308" };
+  if (temp <= 30) return { label: "Оптималды",   color: "#00ff88" };
+  if (temp <= 35) return { label: "Стресс",      color: "#f97316" };
+  return           { label: "Өте қауіпті",      color: "#ef4444" };
 }
 
 const BASE_CO2 = 430;
-
-// Метрика карточка с цветной полосой сверху
-interface MetricCardProps {
-  label: string;
-  value: string;
-  unit?: string;
-  sublabel?: string;
-  topColor: string; // tailwind gradient class
-  badge?: string;
-  badgeColor?: string;
-  pulse?: boolean;
-  delay?: number;
-  inView: boolean;
-  children?: React.ReactNode;
-}
-
-function MetricCard({ label, value, unit, sublabel, topColor, badge, badgeColor, pulse, delay = 0, inView, children }: MetricCardProps) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={inView ? { opacity: 1, y: 0 } : {}}
-      transition={{ delay, duration: 0.5 }}
-      className="glass rounded-xl neon-border overflow-hidden cursor-default hover:scale-[1.01] transition-transform duration-200"
-    >
-      {/* Цветная полоса сверху */}
-      <div className={`h-1 w-full bg-gradient-to-r ${topColor}`} />
-      <div className="p-6">
-        <div className="flex items-center justify-between mb-3">
-          <p className="text-sm text-muted-foreground">{label}</p>
-          {badge && (
-            <span className={`text-xs px-2 py-0.5 rounded-full border ${badgeColor || "border-primary/40 text-primary"}`}>
-              {badge}
-            </span>
-          )}
-        </div>
-        <div className="flex items-end gap-1">
-          <p className={`font-mono-data text-4xl font-bold text-primary transition-all duration-700 ${pulse ? "animate-pulse" : ""}`}>
-            {value}
-          </p>
-          {unit && <p className="text-muted-foreground text-sm mb-1">{unit}</p>}
-        </div>
-        {sublabel && <p className="text-xs text-muted-foreground mt-1">{sublabel}</p>}
-        {children}
-      </div>
-    </motion.div>
-  );
-}
 
 const DashboardSection = () => {
   const ref = useRef(null);
@@ -91,12 +33,10 @@ const DashboardSection = () => {
 
   const { sensorData, connected, offline, loading } = useSensorSocket();
 
-  // Симулированные CO2 и pH на основе температуры (только если нет реальных данных)
   const [simCo2, setSimCo2] = useState(BASE_CO2);
-  const [simPh, setSimPh] = useState(7.0);
-  const [co2History, setCo2History] = useState<{ time: string; value: number }[]>([]);
+  const [simPh, setSimPh]   = useState(7.0);
+  const [co2History, setCo2History] = useState<{ t: string; v: number }[]>([]);
 
-  // Escape key to exit fullscreen
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setFullscreen(false); };
     window.addEventListener("keydown", onKey);
@@ -108,319 +48,235 @@ const DashboardSection = () => {
     const interval = setInterval(() => {
       const temp = sensorData.temperature!;
       const eff = photoEfficiency(temp);
-
       setSimCo2(prev => {
-        const noise = (Math.random() - 0.5) * 2;
-        const absorption = eff * 1.5;
-        const next = prev - absorption + noise;
-        const drifted = next + (BASE_CO2 - next) * 0.01;
-        return parseFloat(Math.max(380, Math.min(450, drifted)).toFixed(1));
+        const next = prev - eff * 1.5 + (Math.random() - 0.5) * 2;
+        return parseFloat(Math.max(380, Math.min(450, next + (BASE_CO2 - next) * 0.01)).toFixed(1));
       });
-
       setSimPh(prev => {
-        const noise = (Math.random() - 0.5) * 0.02;
-        const delta = eff * 0.005;
-        const next = prev + delta + noise;
-        const drifted = next - (next - 7.0) * 0.005;
-        return parseFloat(Math.max(6.5, Math.min(7.8, drifted)).toFixed(2));
+        const next = prev + eff * 0.005 + (Math.random() - 0.5) * 0.02;
+        return parseFloat(Math.max(6.5, Math.min(7.8, next - (next - 7.0) * 0.005)).toFixed(2));
       });
-
       setCo2History(prev => {
         const now = new Date();
-        const label = `${now.getHours()}:${String(now.getMinutes()).padStart(2, "0")}:${String(now.getSeconds()).padStart(2, "0")}`;
-        return [...prev, { time: label, value: parseFloat(simCo2.toFixed(1)) }].slice(-12);
+        const label = `${now.getHours()}:${String(now.getMinutes()).padStart(2,"0")}:${String(now.getSeconds()).padStart(2,"0")}`;
+        return [...prev, { t: label, v: parseFloat(simCo2.toFixed(1)) }].slice(-20);
       });
     }, 3000);
     return () => clearInterval(interval);
   }, [sensorData?.temperature, simCo2]);
 
-  const ph = sensorData?.ph ?? simPh;
-  const phAngle = ((ph - 6.5) / (7.8 - 6.5)) * 180;
-  const temp = sensorData?.temperature ?? null;
-  const humidity = sensorData?.humidity ?? null;
-  const co2 = sensorData?.co2_ppm ?? simCo2;
-  const coPpm = sensorData?.co_ppm ?? null;
-  const status = temp != null ? algaeStatus(temp) : null;
-  const eff = temp != null ? Math.round(photoEfficiency(temp) * 100) : 0;
-  const coStat = coPpm != null ? coStatus(coPpm) : null;
-  const aqi = calculateAQI(coPpm, co2, temp);
+  const temp     = sensorData?.temperature ?? null;
+  const humidity = sensorData?.humidity    ?? null;
+  const co2      = sensorData?.co2_ppm     ?? simCo2;
+  const coPpm    = sensorData?.co_ppm      ?? null;
+  const ph       = sensorData?.ph          ?? simPh;
+  const eff      = temp != null ? Math.round(photoEfficiency(temp) * 100) : 0;
+  const algae    = temp != null ? algaeStatus(temp) : null;
+  const aqi      = calculateAQI(coPpm, co2, temp);
+
+  const coColor  = !coPpm ? "#6b7280" : coPpm > 200 ? "#ef4444" : coPpm > 50 ? "#f97316" : "#00ff88";
 
   const sectionClass = fullscreen
-    ? "fixed inset-0 z-40 bg-background overflow-y-auto py-8 px-4"
+    ? "fixed inset-0 z-40 bg-[#050a0e] overflow-y-auto py-8 px-4"
     : "relative py-24 px-4";
 
   return (
     <section id="dashboard" className={sectionClass} ref={ref}>
       <div className="container mx-auto max-w-6xl">
+        {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={inView ? { opacity: 1, y: 0 } : {}}
           transition={{ duration: 0.6 }}
-          className="text-center mb-16"
+          className="flex items-end justify-between mb-10"
         >
-          <p className="text-sm uppercase tracking-widest text-primary mb-3 font-mono-data">Live Monitor</p>
-          <h2 className="font-headline text-4xl md:text-5xl font-bold text-foreground">
-            Нақты уақыт <span className="text-gradient">мониторингі</span>
-          </h2>
-
-          {/* Статус + AQI + fullscreen */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={inView ? { opacity: 1 } : {}}
-            transition={{ delay: 0.3 }}
-            className="flex items-center justify-center gap-3 mt-4 flex-wrap"
-          >
-            <span className={`w-2 h-2 rounded-full ${connected ? "bg-primary animate-pulse" : offline ? "bg-red-500" : "bg-yellow-500 animate-pulse"}`} />
-            <span className="text-xs text-muted-foreground font-mono-data">
-              {connected ? "WebSocket подключён" : offline ? "ESP32 офлайн" : "Подключение..."}
-            </span>
-            <span className={`text-xs px-3 py-1 rounded-full border font-mono-data font-semibold ${aqi.bgColor} ${aqi.color}`}>
+          <div>
+            <p className="text-xs uppercase tracking-widest text-[#00ff88] mb-2 font-mono-data">Live Monitor</p>
+            <h2 className="font-display text-4xl md:text-5xl font-bold text-white">
+              Нақты уақыт{" "}
+              <span className="bg-gradient-to-r from-[#00ff88] to-[#00d4ff] bg-clip-text text-transparent">
+                мониторингі
+              </span>
+            </h2>
+          </div>
+          <div className="flex items-center gap-3 flex-wrap justify-end">
+            {/* AQI badge */}
+            <span className={`text-xs px-3 py-1.5 rounded-full border font-mono-data font-semibold ${aqi.bgColor} ${aqi.color}`}>
               {aqi.emoji} AQI {aqi.score} — {aqi.label}
             </span>
+            {/* WS status */}
+            <span className="flex items-center gap-1.5 text-xs font-mono-data text-white/50">
+              <span className={`w-1.5 h-1.5 rounded-full ${connected ? "bg-[#00ff88] animate-pulse" : offline ? "bg-red-500" : "bg-yellow-400 animate-pulse"}`} />
+              {connected ? "WS Live" : offline ? "Офлайн" : "..."}
+            </span>
+            {/* Fullscreen button */}
             <button
               onClick={() => setFullscreen(f => !f)}
-              className="text-xs px-3 py-1 rounded-full border border-white/20 text-muted-foreground hover:text-primary hover:border-primary/50 transition-all"
-              title={fullscreen ? "Выйти из полноэкранного режима (Esc)" : "Полноэкранный режим"}
+              className="p-1.5 rounded-lg glass-card text-white/40 hover:text-[#00ff88] transition-colors"
+              title={fullscreen ? "Выйти (Esc)" : "Полный экран"}
             >
-              {fullscreen ? "✕ Выйти" : "⛶ Полный экран"}
+              {fullscreen ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
             </button>
-          </motion.div>
+          </div>
         </motion.div>
 
         {loading ? (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={inView ? { opacity: 1 } : {}}
-            className="glass rounded-xl p-10 neon-border text-center"
-          >
-            <div className="text-4xl mb-4 animate-pulse">📡</div>
-            <p className="text-muted-foreground">Деректер жүктелуде... / Загрузка данных...</p>
-          </motion.div>
+          <div className="glass-card rounded-2xl p-12 text-center">
+            <Activity size={40} className="mx-auto text-[#00ff88] animate-pulse mb-4" />
+            <p className="text-white/50 font-body">Загрузка данных...</p>
+          </div>
         ) : offline ? (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={inView ? { opacity: 1, y: 0 } : {}}
-            className="glass rounded-xl p-10 neon-border text-center"
-          >
-            <div className="text-5xl mb-4">📡</div>
-            <p className="text-xl font-bold text-muted-foreground mb-2">ESP32 офлайн</p>
-            <p className="text-sm text-muted-foreground">Деректер жоқ. ESP32 станциясын қосыңыз.</p>
-            <p className="text-xs text-muted-foreground mt-1 opacity-60">Нет данных. Подключите ESP32 станцию.</p>
-          </motion.div>
+          <div className="glass-card rounded-2xl p-12 text-center">
+            <Activity size={40} className="mx-auto text-white/20 mb-4" />
+            <p className="text-white/50 font-body">ESP32 офлайн — нет данных</p>
+          </div>
         ) : (
-          <>
-            {/* Row 1: Температура | Влажность | CO (MQ-7) */}
-            <div className="grid md:grid-cols-3 gap-6 mb-6">
-              <MetricCard
-                label="Температура"
-                value={temp != null ? temp.toFixed(1) : "—"}
-                unit="°C"
-                sublabel="Оптимум: 20–30°C"
-                topColor="from-orange-500 to-orange-300"
-                badge="ESP32"
-                badgeColor="border-orange-400/40 text-orange-300"
-                delay={0.1}
-                inView={inView}
-              />
+          <div className="grid grid-cols-2 md:grid-cols-4 grid-rows-auto md:grid-rows-3 gap-4">
 
-              <MetricCard
-                label="Влажность"
-                value={humidity != null ? humidity.toFixed(1) : "—"}
-                unit="%"
-                sublabel="Норма: 60–80%"
-                topColor="from-blue-500 to-cyan-400"
-                badge="ESP32"
-                badgeColor="border-blue-400/40 text-blue-300"
-                delay={0.2}
-                inView={inView}
-              >
-                {humidity != null && (
-                  <div className="mt-3 w-full bg-muted rounded-full h-1.5">
-                    <div
-                      className="h-1.5 rounded-full transition-all duration-700"
-                      style={{
-                        width: `${Math.min(100, humidity)}%`,
-                        background: humidity >= 60 && humidity <= 80 ? "hsl(153,100%,50%)" : humidity < 60 ? "hsl(45,100%,50%)" : "hsl(0,75%,60%)"
-                      }}
-                    />
-                  </div>
-                )}
-              </MetricCard>
-
-              <MetricCard
-                label="CO (угарный газ) MQ-7"
-                value={coPpm != null ? coPpm.toFixed(0) : "—"}
-                unit="ppm"
-                sublabel="Норма: < 50 ppm"
-                topColor={coStat ? `${coStat.bg} to-transparent` : "from-gray-500 to-gray-400"}
-                badge={coStat?.label}
-                badgeColor={coPpm != null && coPpm < 50 ? "border-primary/40 text-primary" : "border-red-400/40 text-red-300"}
-                delay={0.3}
-                inView={inView}
-              >
-                {coPpm != null && (
-                  <div className="mt-3 w-full bg-muted rounded-full h-1.5">
-                    <div
-                      className="h-1.5 rounded-full transition-all duration-700"
-                      style={{
-                        width: `${Math.min(100, (coPpm / 200) * 100)}%`,
-                        background: coPpm < 50 ? "hsl(153,100%,50%)" : coPpm < 100 ? "hsl(45,100%,50%)" : "hsl(0,75%,60%)"
-                      }}
-                    />
-                  </div>
-                )}
-              </MetricCard>
-            </div>
-
-            {/* Row 2: pH gauge | CO2 chart | Статус балдыря */}
-            <div className="grid md:grid-cols-3 gap-6">
-
-              {/* pH Gauge */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={inView ? { opacity: 1, y: 0 } : {}}
-                transition={{ delay: 0.4, duration: 0.5 }}
-                className="glass rounded-xl neon-border overflow-hidden hover:scale-[1.01] transition-transform duration-200"
-              >
-                <div className="h-1 w-full bg-gradient-to-r from-green-500 to-emerald-400" />
-                <div className="p-6">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-sm text-muted-foreground">pH деңгейі</p>
-                    <span className="text-xs px-2 py-0.5 rounded-full border border-green-400/40 text-green-300">
-                      {sensorData?.ph ? "ESP32" : "Симуляция"}
-                    </span>
-                  </div>
-                  <div className="relative w-44 h-22 mx-auto overflow-hidden">
-                    <svg viewBox="0 0 200 100" className="w-full">
-                      <path d="M 10 100 A 90 90 0 0 1 190 100" fill="none" stroke="hsl(144 30% 15%)" strokeWidth="12" strokeLinecap="round" />
-                      <path
-                        d="M 10 100 A 90 90 0 0 1 190 100"
-                        fill="none"
-                        stroke="url(#phGrad)"
-                        strokeWidth="12"
-                        strokeLinecap="round"
-                        strokeDasharray={`${Math.max(0, Math.min(1, phAngle / 180)) * 283} 283`}
+            {/* Temp — tall card, row-span-2 */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }} animate={inView ? { opacity: 1, y: 0 } : {}} transition={{ delay: 0.1 }}
+              className="glass-card rounded-2xl p-5 md:row-span-2 flex flex-col"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <Thermometer size={18} className="text-[#f97316]" />
+                <span className="text-xs font-mono-data text-white/30">ESP32</span>
+              </div>
+              <p className="text-xs text-white/40 mb-1">Температура</p>
+              <p className="font-mono-data text-5xl font-bold text-[#f97316] transition-all duration-700 mb-1">
+                {temp != null ? temp.toFixed(1) : "—"}
+              </p>
+              <p className="text-xs text-white/30 mb-4">°C · норма 20–30°C</p>
+              {temp != null && (
+                <>
+                  <div className="flex-1 flex flex-col justify-end">
+                    <div className="w-full bg-white/5 rounded-full h-1.5 mb-2">
+                      <div
+                        className="h-1.5 rounded-full transition-all duration-700"
+                        style={{ width: `${Math.min(100, (temp / 40) * 100)}%`, background: "#f97316" }}
                       />
-                      <defs>
-                        <linearGradient id="phGrad" x1="0" y1="0" x2="1" y2="0">
-                          <stop offset="0%" stopColor="hsl(0,75%,60%)" />
-                          <stop offset="50%" stopColor="hsl(60,75%,60%)" />
-                          <stop offset="100%" stopColor="hsl(153,100%,50%)" />
-                        </linearGradient>
-                      </defs>
-                    </svg>
+                    </div>
+                    {algae && (
+                      <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: algae.color }} />
+                        <span className="text-xs" style={{ color: algae.color }}>{algae.label}</span>
+                      </div>
+                    )}
+                    <p className="text-xs text-white/25 mt-2">Фотосинтез: {eff}%</p>
+                    <div className="w-full bg-white/5 rounded-full h-1 mt-1">
+                      <div className="h-1 rounded-full transition-all duration-700" style={{ width: `${eff}%`, background: algae?.color }} />
+                    </div>
                   </div>
-                  <p className="font-mono-data text-4xl font-bold text-center text-primary transition-all duration-1000">
-                    {ph.toFixed(2)}
-                  </p>
-                  <p className="text-xs text-muted-foreground text-center mt-1">Норма: 6.5–7.5</p>
+                </>
+              )}
+            </motion.div>
+
+            {/* CO₂ chart — wide, col-span-2 */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }} animate={inView ? { opacity: 1, y: 0 } : {}} transition={{ delay: 0.2 }}
+              className="glass-card rounded-2xl p-5 col-span-2 md:col-span-2"
+            >
+              <div className="flex items-center justify-between mb-1">
+                <div className="flex items-center gap-2">
+                  <Leaf size={16} className="text-[#00ff88]" />
+                  <span className="text-xs text-white/40">CO₂ (ppm)</span>
                 </div>
-              </motion.div>
-
-              {/* CO2 chart */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={inView ? { opacity: 1, y: 0 } : {}}
-                transition={{ delay: 0.5, duration: 0.5 }}
-                className="glass rounded-xl neon-border overflow-hidden hover:scale-[1.01] transition-transform duration-200"
-              >
-                <div className="h-1 w-full bg-gradient-to-r from-primary to-cyan-400" />
-                <div className="p-6">
-                  <div className="flex items-center justify-between mb-1">
-                    <p className="text-sm text-muted-foreground">CO₂ (ppm)</p>
-                    <span className="text-xs px-2 py-0.5 rounded-full border border-primary/40 text-primary">
-                      {sensorData?.co2_ppm ? "ESP32" : "Симуляция"}
-                    </span>
-                  </div>
-                  <p className="font-mono-data text-3xl font-bold text-primary mb-3 transition-all duration-700">
-                    {co.toFixed(1)}
-                  </p>
-                  {co2History.length > 1 ? (
-                    <ResponsiveContainer width="100%" height={130}>
-                      <LineChart data={co2History}>
-                        <XAxis dataKey="time" tick={{ fill: "hsl(140 15% 55%)", fontSize: 9 }} axisLine={false} tickLine={false} hide />
-                        <YAxis domain={[375, 455]} tick={{ fill: "hsl(140 15% 55%)", fontSize: 10 }} axisLine={false} tickLine={false} width={30} />
-                        <Tooltip
-                          contentStyle={{ background: "#000", border: "1px solid hsl(153,100%,50%)", borderRadius: 8, fontSize: 11 }}
-                          labelStyle={{ color: "hsl(153,100%,50%)" }}
-                        />
-                        <Line
-                          type="monotone"
-                          dataKey="value"
-                          stroke="hsl(153 100% 50%)"
-                          strokeWidth={2}
-                          dot={false}
-                          activeDot={{ r: 4, fill: "hsl(153 100% 50%)" }}
-                        />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  ) : (
-                    <p className="text-xs text-muted-foreground text-center py-8">
-                      График 2+ өлшем кейін...
-                    </p>
-                  )}
-                  <p className="text-xs text-muted-foreground mt-1">Норма: 400–450 ppm</p>
+                <span className="text-xs font-mono-data text-white/30">{sensorData?.co2_ppm ? "ESP32" : "Симуляция"}</span>
+              </div>
+              <p className="font-mono-data text-3xl font-bold text-[#00ff88] mb-3 transition-all duration-700">
+                {co2.toFixed(1)}
+              </p>
+              {co2History.length > 1 ? (
+                <ResponsiveContainer width="100%" height={90}>
+                  <AreaChart data={co2History}>
+                    <defs>
+                      <linearGradient id="co2G" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#00ff88" stopOpacity={0.25} />
+                        <stop offset="95%" stopColor="#00ff88" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <XAxis dataKey="t" hide />
+                    <YAxis domain={[375, 455]} hide />
+                    <Tooltip
+                      contentStyle={{ background: "#050a0e", border: "1px solid rgba(0,255,136,0.2)", borderRadius: 8, fontSize: 11 }}
+                    />
+                    <Area type="monotone" dataKey="v" stroke="#00ff88" strokeWidth={2} fill="url(#co2G)" dot={false} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-[90px] flex items-center justify-center text-xs text-white/25">
+                  Ожидание данных...
                 </div>
-              </motion.div>
+              )}
+              <p className="text-xs text-white/25 mt-1">норма 400–450 ppm</p>
+            </motion.div>
 
-              {/* Статус балдыря */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={inView ? { opacity: 1, y: 0 } : {}}
-                transition={{ delay: 0.6, duration: 0.5 }}
-                className="glass rounded-xl neon-border overflow-hidden hover:scale-[1.01] transition-transform duration-200"
-              >
-                <div className={`h-1 w-full bg-gradient-to-r ${eff > 50 ? "from-primary to-green-400" : eff > 20 ? "from-yellow-500 to-orange-400" : "from-red-500 to-red-400"}`} />
-                <div className="p-6">
-                  <p className="text-sm text-muted-foreground mb-3">Балдыр күйі / Фотосинтез</p>
-                  {status ? (
-                    <>
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className={`w-3 h-3 rounded-full flex-shrink-0 ${eff > 50 ? "bg-primary animate-pulse-glow" : eff > 20 ? "bg-yellow-500" : "bg-red-500"}`} />
-                        <span className={`font-bold text-sm ${status.color}`}>{status.label}</span>
-                      </div>
-                      <p className="text-xs text-muted-foreground mb-3">{status.hint}</p>
-
-                      {/* Большая шкала эффективности */}
-                      <div className="w-full bg-muted rounded-full h-3 mb-1">
-                        <div
-                          className="h-3 rounded-full transition-all duration-1000"
-                          style={{
-                            width: `${eff}%`,
-                            background: eff > 50 ? "hsl(153,100%,50%)" : eff > 20 ? "hsl(45,100%,50%)" : "hsl(0,75%,60%)"
-                          }}
-                        />
-                      </div>
-                      <div className="flex justify-between text-xs text-muted-foreground mb-3">
-                        <span>0%</span>
-                        <span className="text-primary font-mono-data font-bold">{eff}%</span>
-                        <span>100%</span>
-                      </div>
-
-                      {/* Мини таблица температур */}
-                      <div className="space-y-1 text-xs">
-                        {[
-                          { range: "20–30°C", label: "Оптималды ✅", color: "bg-primary", eff: 100, active: temp != null && temp >= 20 && temp <= 30 },
-                          { range: "15–20°C", label: "Баяу",          color: "bg-yellow-500", eff: 45, active: temp != null && temp >= 15 && temp < 20 },
-                          { range: "30–40°C", label: "Стресс",         color: "bg-orange-400", eff: 30, active: temp != null && temp > 30 && temp <= 40 },
-                          { range: "< 10°C",  label: "Қауіп",          color: "bg-red-400",    eff: 2,  active: temp != null && temp < 10 },
-                        ].map(row => (
-                          <div key={row.range} className={`flex items-center gap-2 rounded px-2 py-1 ${row.active ? "ring-1 ring-white/30 bg-white/5" : ""}`}>
-                            <span className={`w-2 h-2 rounded-full flex-shrink-0 ${row.color}`} />
-                            <span className="text-muted-foreground w-16 flex-shrink-0">{row.range}</span>
-                            <span className="text-foreground/80 flex-1 truncate">{row.label}</span>
-                            <span className="text-primary font-mono">{row.eff}%</span>
-                          </div>
-                        ))}
-                      </div>
-                    </>
-                  ) : (
-                    <p className="text-xs text-muted-foreground">Деректер жоқ</p>
-                  )}
+            {/* Humidity */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }} animate={inView ? { opacity: 1, y: 0 } : {}} transition={{ delay: 0.3 }}
+              className="glass-card rounded-2xl p-5 flex flex-col gap-2"
+            >
+              <Droplets size={16} className="text-[#00d4ff]" />
+              <p className="text-xs text-white/40">Ылғалдылық</p>
+              <p className="font-mono-data text-3xl font-bold text-[#00d4ff] transition-all duration-700">
+                {humidity != null ? `${humidity.toFixed(0)}%` : "—"}
+              </p>
+              {humidity != null && (
+                <div className="w-full bg-white/5 rounded-full h-1">
+                  <div className="h-1 rounded-full bg-[#00d4ff] transition-all duration-700" style={{ width: `${Math.min(100, humidity)}%` }} />
                 </div>
-              </motion.div>
-            </div>
-          </>
+              )}
+              <p className="text-xs text-white/25">норма 60–80%</p>
+            </motion.div>
+
+            {/* CO (MQ-7) — wide second row */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }} animate={inView ? { opacity: 1, y: 0 } : {}} transition={{ delay: 0.35 }}
+              className="glass-card rounded-2xl p-5 col-span-2 md:col-span-2 flex flex-col gap-2"
+            >
+              <div className="flex items-center justify-between">
+                <Wind size={16} style={{ color: coColor }} />
+                <span className="text-xs font-mono-data px-2 py-0.5 rounded-full"
+                  style={{ color: coColor, background: `${coColor}18`, border: `1px solid ${coColor}40` }}
+                >
+                  {!coPpm ? "—" : coPpm > 200 ? "Критично" : coPpm > 50 ? "Повышен" : "Норма"}
+                </span>
+              </div>
+              <p className="text-xs text-white/40">CO угарный газ (MQ-7)</p>
+              <p className="font-mono-data text-4xl font-bold transition-all duration-700" style={{ color: coColor }}>
+                {coPpm != null ? `${coPpm.toFixed(0)} ppm` : "—"}
+              </p>
+              {coPpm != null && (
+                <div className="w-full bg-white/5 rounded-full h-2">
+                  <div
+                    className="h-2 rounded-full transition-all duration-700"
+                    style={{ width: `${Math.min(100, (coPpm / 200) * 100)}%`, background: coColor }}
+                  />
+                </div>
+              )}
+              <p className="text-xs text-white/25">норма &lt; 50 ppm · опасно &gt; 200 ppm</p>
+            </motion.div>
+
+            {/* pH gauge */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }} animate={inView ? { opacity: 1, y: 0 } : {}} transition={{ delay: 0.4 }}
+              className="glass-card rounded-2xl p-5 flex flex-col gap-2"
+            >
+              <FlaskConical size={16} className="text-[#00ff88]" />
+              <p className="text-xs text-white/40">pH деңгейі</p>
+              <p className="font-mono-data text-3xl font-bold text-[#00ff88] transition-all duration-700">
+                {ph.toFixed(2)}
+              </p>
+              <div className="w-full bg-white/5 rounded-full h-1">
+                <div
+                  className="h-1 rounded-full bg-[#00ff88] transition-all duration-700"
+                  style={{ width: `${Math.min(100, ((ph - 6.5) / (8.0 - 6.5)) * 100)}%` }}
+                />
+              </div>
+              <p className="text-xs text-white/25">норма 6.5–7.5</p>
+            </motion.div>
+
+          </div>
         )}
       </div>
     </section>
