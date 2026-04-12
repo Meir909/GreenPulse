@@ -1,0 +1,13 @@
+.git
+.gitignore
+README.md
+DEPLOYMENT.md
+PHASE_2_SUMMARY.md
+README_PHASE_2.md
+QUICK_REFERENCE.md
+.claude
+node_modules
+*.env
+.env.local
+.next
+dist
