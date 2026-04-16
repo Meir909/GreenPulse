@@ -1,116 +1,103 @@
 import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { Map, ExternalLink } from "lucide-react";
+import { motion } from "framer-motion";
 
-const navLinks = [
+const navItems = [
+  { href: "#problem", label: "Мәселе" },
+  { href: "#solution", label: "Шешім" },
   { href: "#dashboard", label: "Мониторинг" },
-  { href: "#history",   label: "История" },
-  { href: "#calculator",label: "Калькулятор" },
+  { href: "#calculator", label: "Калькулятор" },
+  { href: "#business", label: "Бизнес" },
+  { href: "#team", label: "Команда" },
+  { href: "/stations", label: "Станции", isRoute: true },
 ];
 
 const Navbar = () => {
-  const [scrolled, setScrolled]     = useState(false);
+  const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 40);
+    const onScroll = () => setScrolled(window.scrollY > 50);
     window.addEventListener("scroll", onScroll);
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
   return (
-    <div className="fixed top-0 left-0 right-0 z-50 flex justify-center px-4 pt-4">
-      <motion.nav
-        initial={{ y: -80, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.6, ease: "easeOut" }}
-        className={`w-full max-w-3xl rounded-2xl transition-all duration-300 ${
-          scrolled
-            ? "bg-[#050a0e]/90 backdrop-blur-xl border border-[rgba(0,255,136,0.20)] shadow-[0_0_40px_rgba(0,255,136,0.06)]"
-            : "bg-black/40 backdrop-blur-md border border-white/8"
-        }`}
-      >
-        <div className="flex items-center justify-between px-5 py-3">
-          {/* Logo */}
-          <a href="/" className="flex items-center gap-2.5 group">
-            <span className="relative flex h-2.5 w-2.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#00ff88] opacity-75" />
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-[#00ff88]" />
-            </span>
-            <span className="font-display text-base font-bold bg-gradient-to-r from-[#00ff88] via-[#00d4ff] to-[#7c3aed] bg-clip-text text-transparent">
-              GreenPulse
-            </span>
-          </a>
+    <motion.nav
+      initial={{ y: -100 }}
+      animate={{ y: 0 }}
+      transition={{ duration: 0.6, ease: "easeOut" }}
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+        scrolled ? "glass py-3" : "py-5"
+      }`}
+    >
+      <div className="container mx-auto px-4 flex items-center justify-between">
+        <a href="/" className="font-headline text-xl font-bold text-gradient">
+          GreenPulse
+        </a>
 
-          {/* Desktop links */}
-          <div className="hidden md:flex items-center gap-0.5">
-            {navLinks.map((item) => (
-              <a
-                key={item.href}
-                href={item.href}
-                className="text-sm text-white/55 hover:text-[#00ff88] px-3.5 py-1.5 rounded-xl hover:bg-[rgba(0,255,136,0.07)] transition-all duration-200 font-body"
-              >
-                {item.label}
-              </a>
-            ))}
-          </div>
-
-          {/* Right */}
-          <div className="flex items-center gap-2">
+        {/* Desktop */}
+        <div className="hidden md:flex items-center gap-8">
+          {navItems.filter(item => !item.isRoute).map((item) => (
             <a
-              href="/stations"
-              className="hidden md:flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-sm font-medium text-white bg-gradient-to-r from-[#00ff88]/15 to-[#00d4ff]/15 border border-[rgba(0,255,136,0.25)] hover:border-[rgba(0,255,136,0.55)] hover:from-[#00ff88]/25 hover:to-[#00d4ff]/25 transition-all duration-200"
+              key={item.href}
+              href={item.href}
+              className="text-sm text-muted-foreground hover:text-primary transition-colors duration-200"
             >
-              <Map size={13} />
-              Станции
-              <ExternalLink size={10} className="text-white/30" />
+              {item.label}
             </a>
-
-            {/* Mobile burger */}
-            <button
-              onClick={() => setMobileOpen(!mobileOpen)}
-              className="md:hidden flex flex-col gap-[5px] p-2"
-              aria-label="Toggle menu"
-            >
-              <span className={`block h-0.5 w-5 bg-white/70 rounded-full transition-all duration-300 origin-center ${mobileOpen ? "rotate-45 translate-y-[7px]" : ""}`} />
-              <span className={`block h-0.5 w-5 bg-white/70 rounded-full transition-all duration-300 ${mobileOpen ? "opacity-0 scale-x-0" : ""}`} />
-              <span className={`block h-0.5 w-5 bg-white/70 rounded-full transition-all duration-300 origin-center ${mobileOpen ? "-rotate-45 -translate-y-[7px]" : ""}`} />
-            </button>
-          </div>
+          ))}
         </div>
 
-        {/* Mobile menu */}
-        <AnimatePresence>
-          {mobileOpen && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.2 }}
-              className="md:hidden border-t border-white/8 px-5 py-3 flex flex-col gap-1 overflow-hidden"
+        {/* Right side - Stations button */}
+        <div className="flex items-center gap-4">
+          <a
+            href="/stations"
+            className="hidden md:inline-flex px-4 py-2 rounded-lg bg-gradient-to-r from-cyan-600 to-green-600 hover:from-cyan-700 hover:to-green-700 text-white text-sm font-medium transition-all duration-300 border border-cyan-400/50 hover:border-cyan-300"
+          >
+            🗺️ Станции
+          </a>
+
+          {/* Mobile toggle */}
+          <button
+            onClick={() => setMobileOpen(!mobileOpen)}
+            className="md:hidden text-foreground"
+            aria-label="Toggle menu"
+          >
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              {mobileOpen ? (
+                <path d="M18 6L6 18M6 6l12 12" />
+              ) : (
+                <path d="M3 12h18M3 6h18M3 18h18" />
+              )}
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      {/* Mobile menu */}
+      {mobileOpen && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="md:hidden glass mt-2 mx-4 rounded-lg p-4 flex flex-col gap-3"
+        >
+          {navItems.map((item) => (
+            <a
+              key={item.href}
+              href={item.href}
+              onClick={() => setMobileOpen(false)}
+              className={`text-sm transition-colors ${
+                item.isRoute
+                  ? "px-3 py-2 rounded-lg bg-gradient-to-r from-cyan-600 to-green-600 text-white font-medium"
+                  : "text-muted-foreground hover:text-primary"
+              }`}
             >
-              {navLinks.map((item) => (
-                <a
-                  key={item.href}
-                  href={item.href}
-                  onClick={() => setMobileOpen(false)}
-                  className="text-sm text-white/60 hover:text-[#00ff88] px-3 py-2.5 rounded-xl hover:bg-[rgba(0,255,136,0.07)] transition-all font-body"
-                >
-                  {item.label}
-                </a>
-              ))}
-              <a
-                href="/stations"
-                onClick={() => setMobileOpen(false)}
-                className="flex items-center gap-2 text-sm px-3 py-2.5 rounded-xl bg-gradient-to-r from-[#00ff88]/15 to-[#00d4ff]/15 border border-[rgba(0,255,136,0.25)] text-white mt-1"
-              >
-                <Map size={13} /> Станции
-              </a>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </motion.nav>
-    </div>
+              {item.label}
+            </a>
+          ))}
+        </motion.div>
+      )}
+    </motion.nav>
   );
 };
 
