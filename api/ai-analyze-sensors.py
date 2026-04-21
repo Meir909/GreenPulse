@@ -1,26 +1,27 @@
-from http.server import BaseHTTPRequestHandler
-import json
+from flask import Flask, request, jsonify
 import os
 from openai import OpenAI
 
-client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+app = Flask(__name__)
 
-class handler(BaseHTTPRequestHandler):
-    def do_POST(self):
-        content_length = int(self.headers.get("Content-Length", 0))
-        body = self.rfile.read(content_length)
-        try:
-            req = json.loads(body)
-        except Exception:
-            req = {}
+@app.route("/api/ai-analyze-sensors", methods=["POST", "OPTIONS"])
+def handler():
+    if request.method == "OPTIONS":
+        res = jsonify({})
+        res.headers["Access-Control-Allow-Origin"] = "*"
+        res.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
+        res.headers["Access-Control-Allow-Headers"] = "Content-Type"
+        return res, 200
 
-        temperature     = req.get("temperature", 22)
-        humidity        = req.get("humidity", 65)
-        light_intensity = req.get("light_intensity", 450)
-        co2_ppm         = req.get("co2_ppm", 420)
-        ph              = req.get("ph", 7.0)
+    req = request.get_json(silent=True) or {}
 
-        prompt = f"""Sensor data from GreenPulse bioreactor bench:
+    temperature     = req.get("temperature", 22)
+    humidity        = req.get("humidity", 65)
+    light_intensity = req.get("light_intensity", 450)
+    co2_ppm         = req.get("co2_ppm", 420)
+    ph              = req.get("ph", 7.0)
+
+    prompt = f"""Sensor data from GreenPulse bioreactor bench:
 • Temperature: {temperature}°C (optimal 20–25°C)
 • Humidity: {humidity}% (optimal 60–80%)
 • Light: {light_intensity} lux (optimal 400–600)
@@ -35,31 +36,21 @@ Respond strictly in this format, one item per line, in Kazakh language:
 ⚠️ Ауытқулар: [нормадан тыс параметрлер немесе "Жоқ"]
 🔧 Ұсыныс: [бір нақты іс-қимыл]"""
 
-        try:
-            response = client.chat.completions.create(
-                model="gpt-4o",
-                messages=[
-                    {"role": "system", "content": "You are a scientific advisor for GreenPulse, a Chlorella vulgaris bioreactor. Respond in Kazakh language."},
-                    {"role": "user", "content": prompt}
-                ],
-                max_tokens=300,
-                temperature=0.3
-            )
-            result = {"analysis": response.choices[0].message.content}
-            status = 200
-        except Exception as e:
-            result = {"error": str(e)}
-            status = 500
-
-        self.send_response(status)
-        self.send_header("Content-Type", "application/json")
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.end_headers()
-        self.wfile.write(json.dumps(result).encode())
-
-    def do_OPTIONS(self):
-        self.send_response(200)
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "POST, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
-        self.end_headers()
+    try:
+        client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": "You are a scientific advisor for GreenPulse bioreactor. Respond in Kazakh language."},
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=300,
+            temperature=0.3
+        )
+        res = jsonify({"analysis": response.choices[0].message.content})
+        res.headers["Access-Control-Allow-Origin"] = "*"
+        return res, 200
+    except Exception as e:
+        res = jsonify({"error": str(e)})
+        res.headers["Access-Control-Allow-Origin"] = "*"
+        return res, 500

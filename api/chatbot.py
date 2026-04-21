@@ -1,9 +1,8 @@
-from http.server import BaseHTTPRequestHandler
-import json
+from flask import Flask, request, jsonify
 import os
 from openai import OpenAI
 
-client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+app = Flask(__name__)
 
 SYSTEM_PROMPT = """Сіз GreenPulse жобасының ғылыми көмекшісісіз — Chlorella vulgaris балдырлары негізіндегі биореактор скамейкасы.
 
@@ -17,52 +16,39 @@ SYSTEM_PROMPT = """Сіз GreenPulse жобасының ғылыми көмек�
 
 Қазақ тілінде жауап бер. Қысқа және нақты бол (2-3 сөйлем)."""
 
-class handler(BaseHTTPRequestHandler):
-    def do_POST(self):
-        content_length = int(self.headers.get("Content-Length", 0))
-        body = self.rfile.read(content_length)
-        try:
-            data = json.loads(body)
-        except Exception:
-            data = {}
+@app.route("/api/chatbot", methods=["POST", "OPTIONS"])
+def handler():
+    if request.method == "OPTIONS":
+        res = jsonify({})
+        res.headers["Access-Control-Allow-Origin"] = "*"
+        res.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
+        res.headers["Access-Control-Allow-Headers"] = "Content-Type"
+        return res, 200
 
-        user_message = data.get("message", "")
-        history = data.get("history", [])
+    data = request.get_json(silent=True) or {}
+    user_message = data.get("message", "")
+    history = data.get("history", [])
 
-        if not user_message:
-            self.send_response(400)
-            self.send_header("Content-Type", "application/json")
-            self.end_headers()
-            self.wfile.write(json.dumps({"error": "No message"}).encode())
-            return
+    if not user_message:
+        return jsonify({"error": "No message"}), 400
 
-        try:
-            messages = [{"role": "system", "content": SYSTEM_PROMPT}]
-            if history:
-                messages.extend(history[-10:])
-            messages.append({"role": "user", "content": user_message})
+    try:
+        client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+        messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+        if history:
+            messages.extend(history[-10:])
+        messages.append({"role": "user", "content": user_message})
 
-            response = client.chat.completions.create(
-                model="gpt-4o",
-                messages=messages,
-                max_tokens=500,
-                temperature=0.7
-            )
-            result = {"response": response.choices[0].message.content}
-            status = 200
-        except Exception as e:
-            result = {"error": str(e)}
-            status = 500
-
-        self.send_response(status)
-        self.send_header("Content-Type", "application/json")
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.end_headers()
-        self.wfile.write(json.dumps(result).encode())
-
-    def do_OPTIONS(self):
-        self.send_response(200)
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "POST, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
-        self.end_headers()
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=messages,
+            max_tokens=500,
+            temperature=0.7
+        )
+        res = jsonify({"response": response.choices[0].message.content})
+        res.headers["Access-Control-Allow-Origin"] = "*"
+        return res, 200
+    except Exception as e:
+        res = jsonify({"error": str(e)})
+        res.headers["Access-Control-Allow-Origin"] = "*"
+        return res, 500
