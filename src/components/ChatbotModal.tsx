@@ -22,7 +22,7 @@ const ChatbotModal = ({ isOpen, onClose }: ChatbotModalProps) => {
       id: "1",
       role: "assistant",
       content:
-        "👋 Привет! Я ИИ помощник GreenPulse. Я могу ответить на вопросы о системе, климатических условиях и рекомендациях. Чем я могу вам помочь?",
+        "👋 Сәлем! Мен GreenPulse AI көмекшісімін. Жүйе, климаттық жағдайлар және ұсынымдар туралы сұрақтарыңызға жауап бере аламын. Сізге қалай көмектесе аламын?",
       timestamp: new Date(),
     },
   ]);
@@ -83,7 +83,7 @@ const ChatbotModal = ({ isOpen, onClose }: ChatbotModalProps) => {
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: "assistant",
-        content: data.response || "Извините, не удалось получить ответ. Пожалуйста, попробуйте снова.",
+        content: data.response || "Кешіріңіз, жауап алу мүмкін болмады. Қайта көріңіз.",
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, assistantMessage]);
@@ -104,15 +104,15 @@ const ChatbotModal = ({ isOpen, onClose }: ChatbotModalProps) => {
   };
 
   const generateAIResponse = (userInput: string): string => {
-    const responses = {
-      температур: "Оптимальная температура для системы GreenPulse составляет 20-25°C. Текущая температура 22.5°C находится в идеальном диапазоне! 🌡️",
-      влажност: "Рекомендуемая влажность воздуха: 60-80%. Текущий уровень 65% идеален для фотосинтеза. 💧",
-      co2: "CO2 (углекислый газ) - главное питание для балдырей. Оптимум 400-450 ppm. Текущий уровень 420 ppm отличный! 🌿",
-      ph: "pH должен быть в диапазоне 6.5-7.5 для оптимального роста. Текущее значение 6.8 идеально! ⚗️",
-      балдыр: "Балдыри (Baldyria) - это микроорганизм, который поглощает CO2 из воздуха через фотосинтез. Одна скамейка GreenPulse очищает 38 кг CO2 в год! 🌍",
-      эффектив: "GreenPulse работает с эффективностью 92%, что значительно выше стандартных решений. Это эквивалент 15 деревьев за год! 🌳",
-      свет: "Интенсивность света должна быть 400-600 люкс. Текущий уровень 450 люкс оптимален для фотосинтеза! ☀️",
-      стоимост: "Стоимость одной скамейки GreenPulse: $500-800 USD. Она экономит $1,900 в год на очистке воздуха. 💰",
+    const responses: Record<string, string> = {
+      температур: "GreenPulse жүйесі үшін оптималды температура 20-25°C. Қазіргі температура 22.5°C — идеалды диапазонда! 🌡️",
+      ылғал: "Ұсынылатын ауа ылғалдылығы: 60-80%. Қазіргі деңгей 65% — фотосинтез үшін тамаша. 💧",
+      co2: "CO2 — балдырлардың негізгі қорегі. Оптимум 400-450 ppm. Қазіргі деңгей 420 ppm — өте жақсы! 🌿",
+      ph: "Оптималды өсу үшін pH 6.5-7.5 аралығында болуы керек. Қазіргі мән 6.8 — идеалды! ⚗️",
+      балдыр: "Балдырлар — фотосинтез арқылы ауадан CO2 сіңіретін микроорганизм. Бір GreenPulse орындығы жылына 38 кг CO2 тазартады! 🌍",
+      тиімділік: "GreenPulse 92% тиімділікпен жұмыс істейді — бұл стандартты шешімдерден әлдеқайда жоғары. Бұл жылына 15 ағашқа тең! 🌳",
+      жарық: "Жарық интенсивтілігі 400-600 люкс болуы керек. Қазіргі деңгей 450 люкс — фотосинтез үшін оптималды! ☀️",
+      баға: "Бір GreenPulse орындығының құны: $500-800. Ауаны тазартуда жылына $1,900 үнемдейді. 💰",
     };
 
     for (const [keyword, response] of Object.entries(responses)) {
@@ -121,7 +121,7 @@ const ChatbotModal = ({ isOpen, onClose }: ChatbotModalProps) => {
       }
     }
 
-    return "Это интересный вопрос! 🤔 Я могу помочь с информацией о системе GreenPulse, условиях роста балдырей, параметрах окружающей среды и рекомендациями по оптимизации. Можете спросить что-нибудь конкретное?";
+    return "Қызықты сұрақ! 🤔 GreenPulse жүйесі, балдырлардың өсу жағдайлары, қоршаған орта параметрлері және оңтайландыру ұсынымдары туралы ақпарат бере аламын. Нақты бір нәрсе сұрай аласыз?";
   };
 
   return (
@@ -134,7 +134,7 @@ const ChatbotModal = ({ isOpen, onClose }: ChatbotModalProps) => {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40"
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9998]"
           />
 
           {/* Модальное окно */}
@@ -143,13 +143,13 @@ const ChatbotModal = ({ isOpen, onClose }: ChatbotModalProps) => {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
             transition={{ type: "spring", damping: 20, stiffness: 300 }}
-            className="fixed bottom-24 right-6 w-96 max-w-[calc(100vw-32px)] h-[600px] bg-gradient-to-br from-black to-black/80 rounded-2xl shadow-2xl border border-cyan-500/30 flex flex-col z-50 overflow-hidden"
+            className="fixed bottom-24 right-6 w-96 max-w-[calc(100vw-32px)] h-[600px] bg-gradient-to-br from-black to-black/80 rounded-2xl shadow-2xl border border-cyan-500/30 flex flex-col z-[9999] overflow-hidden"
           >
             {/* Заголовок */}
             <div className="bg-gradient-to-r from-cyan-600 to-green-600 px-6 py-4 flex items-center justify-between border-b border-cyan-500/30">
               <div>
                 <h3 className="text-lg font-bold text-white">GreenPulse AI</h3>
-                <p className="text-xs text-cyan-100">Ваш ИИ помощник</p>
+                <p className="text-xs text-cyan-100">Сіздің AI көмекшісі</p>
               </div>
               <button
                 onClick={onClose}
@@ -191,7 +191,7 @@ const ChatbotModal = ({ isOpen, onClose }: ChatbotModalProps) => {
                 >
                   <div className="bg-white/10 text-gray-100 px-4 py-2 rounded-lg rounded-bl-none border border-cyan-500/20 flex items-center gap-2">
                     <Loader className="w-4 h-4 animate-spin text-cyan-400" />
-                    <span className="text-sm">Печатает...</span>
+                    <span className="text-sm">Жазып жатыр...</span>
                   </div>
                 </motion.div>
               )}
@@ -204,7 +204,7 @@ const ChatbotModal = ({ isOpen, onClose }: ChatbotModalProps) => {
               <form onSubmit={handleSendMessage} className="flex gap-2">
                 <Input
                   type="text"
-                  placeholder="Напишите сообщение..."
+                  placeholder="Хабарламаңызды жазыңыз..."
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
                   disabled={isLoading}

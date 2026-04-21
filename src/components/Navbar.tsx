@@ -1,19 +1,18 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 
-const navItems = [
+const homeNavItems = [
   { href: "#problem", label: "Мәселе" },
   { href: "#solution", label: "Шешім" },
   { href: "#dashboard", label: "Мониторинг" },
   { href: "#calculator", label: "Калькулятор" },
   { href: "#business", label: "Бизнес" },
-  { href: "#team", label: "Команда" },
-  { href: "/stations", label: "Станции", isRoute: true },
 ];
 
 const Navbar = () => {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const isStationsPage = typeof window !== "undefined" && window.location.pathname === "/stations";
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 50);
@@ -36,26 +35,37 @@ const Navbar = () => {
         </a>
 
         {/* Desktop */}
-        <div className="hidden md:flex items-center gap-8">
-          {navItems.filter(item => !item.isRoute).map((item) => (
-            <a
-              key={item.href}
-              href={item.href}
-              className="text-sm text-muted-foreground hover:text-primary transition-colors duration-200"
-            >
-              {item.label}
-            </a>
-          ))}
-        </div>
+        {!isStationsPage && (
+          <div className="hidden md:flex items-center gap-8">
+            {homeNavItems.map((item) => (
+              <a
+                key={item.href}
+                href={item.href}
+                className="text-sm text-muted-foreground hover:text-primary transition-colors duration-200"
+              >
+                {item.label}
+              </a>
+            ))}
+          </div>
+        )}
 
-        {/* Right side - Stations button */}
+        {/* Right side button */}
         <div className="flex items-center gap-4">
-          <a
-            href="/stations"
-            className="hidden md:inline-flex px-4 py-2 rounded-lg bg-gradient-to-r from-cyan-600 to-green-600 hover:from-cyan-700 hover:to-green-700 text-white text-sm font-medium transition-all duration-300 border border-cyan-400/50 hover:border-cyan-300"
-          >
-            🗺️ Станции
-          </a>
+          {isStationsPage ? (
+            <a
+              href="/"
+              className="hidden md:inline-flex px-4 py-2 rounded-lg bg-gradient-to-r from-cyan-600 to-green-600 hover:from-cyan-700 hover:to-green-700 text-white text-sm font-medium transition-all duration-300 border border-cyan-400/50 hover:border-cyan-300"
+            >
+              ← Басты бет
+            </a>
+          ) : (
+            <a
+              href="/stations"
+              className="hidden md:inline-flex px-4 py-2 rounded-lg bg-gradient-to-r from-cyan-600 to-green-600 hover:from-cyan-700 hover:to-green-700 text-white text-sm font-medium transition-all duration-300 border border-cyan-400/50 hover:border-cyan-300"
+            >
+              🗺️ Станциялар
+            </a>
+          )}
 
           {/* Mobile toggle */}
           <button
@@ -81,20 +91,35 @@ const Navbar = () => {
           animate={{ opacity: 1, y: 0 }}
           className="md:hidden glass mt-2 mx-4 rounded-lg p-4 flex flex-col gap-3"
         >
-          {navItems.map((item) => (
+          {isStationsPage ? (
             <a
-              key={item.href}
-              href={item.href}
+              href="/"
               onClick={() => setMobileOpen(false)}
-              className={`text-sm transition-colors ${
-                item.isRoute
-                  ? "px-3 py-2 rounded-lg bg-gradient-to-r from-cyan-600 to-green-600 text-white font-medium"
-                  : "text-muted-foreground hover:text-primary"
-              }`}
+              className="px-3 py-2 rounded-lg bg-gradient-to-r from-cyan-600 to-green-600 text-white text-sm font-medium"
             >
-              {item.label}
+              ← Басты бет
             </a>
-          ))}
+          ) : (
+            <>
+              {homeNavItems.map((item) => (
+                <a
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => setMobileOpen(false)}
+                  className="text-sm text-muted-foreground hover:text-primary transition-colors"
+                >
+                  {item.label}
+                </a>
+              ))}
+              <a
+                href="/stations"
+                onClick={() => setMobileOpen(false)}
+                className="px-3 py-2 rounded-lg bg-gradient-to-r from-cyan-600 to-green-600 text-white text-sm font-medium"
+              >
+                🗺️ Станциялар
+              </a>
+            </>
+          )}
         </motion.div>
       )}
     </motion.nav>

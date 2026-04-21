@@ -1,0 +1,18 @@
+{
+  "name": "GreenPulse",
+  "short_name": "GreenPulse",
+  "description": "Биореакторлық орындық — микробалдырлар арқылы ауаны тазарту",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0a0a",
+  "theme_color": "#06b6d4",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

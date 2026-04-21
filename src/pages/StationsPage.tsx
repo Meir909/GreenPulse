@@ -233,7 +233,7 @@ const StationsPage = () => {
   };
 
   return (
-    <div className="relative min-h-screen bg-background overflow-x-hidden">
+    <div className="relative min-h-screen bg-background overflow-x-hidden pb-16 md:pb-0">
       {/* Навигация */}
       <Navbar />
 
@@ -242,7 +242,7 @@ const StationsPage = () => {
         {/* Заголовок */}
         <h1 className="text-4xl font-bold text-white mb-8">
           <span className="bg-gradient-to-r from-cyan-400 to-green-400 bg-clip-text text-transparent">
-            Интерактивная карта станций
+            Интерактивті станциялар картасы
           </span>
         </h1>
 
@@ -273,7 +273,7 @@ const StationsPage = () => {
                       : "bg-white/5 text-gray-400 border border-cyan-500/20 hover:border-cyan-500/50"
                   }`}
                 >
-                  📊 Анализ
+                  📊 Талдау
                 </button>
                 <button
                   onClick={() => setActiveTab("prediction")}
@@ -283,7 +283,7 @@ const StationsPage = () => {
                       : "bg-white/5 text-gray-400 border border-cyan-500/20 hover:border-cyan-500/50"
                   }`}
                 >
-                  🔮 Прогноз
+                  🔮 Болжам
                 </button>
               </div>
 

@@ -16,7 +16,7 @@ const ChatbotFloatingButton = () => {
         transition={{ type: "spring", damping: 20, stiffness: 300, delay: 0.2 }}
         whileHover={{ scale: 1.1 }}
         whileTap={{ scale: 0.95 }}
-        className="fixed bottom-6 right-6 z-40 w-14 h-14 rounded-full bg-gradient-to-br from-cyan-600 to-green-600 text-white shadow-lg shadow-cyan-500/50 flex items-center justify-center hover:shadow-xl hover:shadow-cyan-500/70 transition-all duration-300 border border-cyan-400/50 hover:border-cyan-300 cursor-pointer group"
+        className="fixed bottom-6 right-6 z-[9999] w-14 h-14 rounded-full bg-gradient-to-br from-cyan-600 to-green-600 text-white shadow-lg shadow-cyan-500/50 flex items-center justify-center hover:shadow-xl hover:shadow-cyan-500/70 transition-all duration-300 border border-cyan-400/50 hover:border-cyan-300 cursor-pointer group"
       >
         {/* Светящееся кольцо */}
         <motion.div
@@ -39,7 +39,7 @@ const ChatbotFloatingButton = () => {
           whileHover={{ opacity: 1, x: 0 }}
           className="absolute right-16 bg-black/90 px-3 py-2 rounded-lg text-sm font-medium text-white whitespace-nowrap border border-cyan-500/30 pointer-events-none"
         >
-          ИИ Помощник
+          AI Көмекші
         </motion.div>
       </motion.button>
 

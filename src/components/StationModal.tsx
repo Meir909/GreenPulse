@@ -47,9 +47,9 @@ const StationModal = ({ station, isOpen, onClose }: StationModalProps) => {
         }),
       });
       const data = await res.json();
-      setResult(data.analysis || "Не удалось получить анализ.");
+      setResult(data.analysis || "Анализ алу мүмкін болмады.");
     } catch {
-      setResult("Ошибка соединения с сервером. Проверьте подключение.");
+      setResult("Сервермен байланыс қатесі. Қосылымды тексеріңіз.");
     } finally {
       setIsLoading(false);
     }
@@ -70,9 +70,9 @@ const StationModal = ({ station, isOpen, onClose }: StationModalProps) => {
         }),
       });
       const data = await res.json();
-      setResult(data.prediction || "Не удалось получить прогноз.");
+      setResult(data.prediction || "Болжам алу мүмкін болмады.");
     } catch {
-      setResult("Ошибка соединения с сервером. Проверьте подключение.");
+      setResult("Сервермен байланыс қатесі. Қосылымды тексеріңіз.");
     } finally {
       setIsLoading(false);
     }
@@ -133,17 +133,17 @@ const StationModal = ({ station, isOpen, onClose }: StationModalProps) => {
                 {/* Статус */}
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-                  <span className="text-green-400 text-sm font-medium">Активна</span>
+                  <span className="text-green-400 text-sm font-medium">Белсенді</span>
                 </div>
 
                 {/* Координаты */}
                 <div className="grid grid-cols-2 gap-3">
                   <div className="bg-white/5 rounded-lg p-3 border border-cyan-500/20">
-                    <p className="text-xs text-gray-400 mb-1">Широта</p>
+                    <p className="text-xs text-gray-400 mb-1">Ендік</p>
                     <p className="text-white font-mono text-sm">{station.latitude?.toFixed(4) ?? "—"}</p>
                   </div>
                   <div className="bg-white/5 rounded-lg p-3 border border-cyan-500/20">
-                    <p className="text-xs text-gray-400 mb-1">Долгота</p>
+                    <p className="text-xs text-gray-400 mb-1">Бойлық</p>
                     <p className="text-white font-mono text-sm">{station.longitude?.toFixed(4) ?? "—"}</p>
                   </div>
                 </div>
@@ -153,10 +153,10 @@ const StationModal = ({ station, isOpen, onClose }: StationModalProps) => {
                   <div className="bg-gradient-to-br from-cyan-500/10 to-transparent rounded-xl p-4 border border-cyan-500/20">
                     <p className="text-xs text-cyan-400 mb-1">Температура</p>
                     <p className="text-2xl font-bold text-cyan-300">{station.temperature}°C</p>
-                    <p className="text-xs text-gray-500 mt-1">Оптимум: 20–25°C</p>
+                    <p className="text-xs text-gray-500 mt-1">Оптимум: 20–25°C ✓</p>
                   </div>
                   <div className="bg-gradient-to-br from-green-500/10 to-transparent rounded-xl p-4 border border-green-500/20">
-                    <p className="text-xs text-green-400 mb-1">Влажность</p>
+                    <p className="text-xs text-green-400 mb-1">Ылғалдылық</p>
                     <p className="text-2xl font-bold text-green-300">{station.humidity}%</p>
                     <p className="text-xs text-gray-500 mt-1">Оптимум: 60–80%</p>
                   </div>
@@ -171,7 +171,7 @@ const StationModal = ({ station, isOpen, onClose }: StationModalProps) => {
                     <p className="text-xs text-gray-500 mt-1">Оптимум: 400–450</p>
                   </div>
                   <div className="col-span-2 bg-gradient-to-br from-orange-500/10 to-transparent rounded-xl p-4 border border-orange-500/20">
-                    <p className="text-xs text-orange-400 mb-1">Интенсивность света</p>
+                    <p className="text-xs text-orange-400 mb-1">Жарық интенсивтілігі</p>
                     <p className="text-2xl font-bold text-orange-300">{station.light_intensity} люкс</p>
                     <p className="text-xs text-gray-500 mt-1">Оптимум: 400–600 люкс</p>
                   </div>
@@ -188,7 +188,7 @@ const StationModal = ({ station, isOpen, onClose }: StationModalProps) => {
                         : "bg-cyan-500/10 text-cyan-300 border border-cyan-500/30 hover:bg-cyan-500/20"
                     }`}
                   >
-                    📊 Анализ ИИ
+                    📊 AI Анализ
                   </button>
                   <button
                     onClick={handlePredict}
@@ -199,7 +199,7 @@ const StationModal = ({ station, isOpen, onClose }: StationModalProps) => {
                         : "bg-green-500/10 text-green-300 border border-green-500/30 hover:bg-green-500/20"
                     }`}
                   >
-                    🔮 Прогноз ИИ
+                    🔮 AI Болжам
                   </button>
                 </div>
 
@@ -213,7 +213,7 @@ const StationModal = ({ station, isOpen, onClose }: StationModalProps) => {
                       className="flex items-center gap-3 py-3 px-4 rounded-xl bg-white/5 border border-cyan-500/20 text-gray-400"
                     >
                       <Loader className="w-4 h-4 animate-spin text-cyan-400 shrink-0" />
-                      <span className="text-sm">ИИ анализирует данные...</span>
+                      <span className="text-sm">AI деректерді талдап жатыр...</span>
                     </motion.div>
                   )}
 
@@ -234,7 +234,7 @@ const StationModal = ({ station, isOpen, onClose }: StationModalProps) => {
                           ? "bg-cyan-500/15 text-cyan-300"
                           : "bg-green-500/15 text-green-300"
                       }`}>
-                        {activeTab === "analysis" ? "📊 Анализ ИИ" : "🔮 Прогноз ИИ"}
+                        {activeTab === "analysis" ? "📊 AI Анализ" : "🔮 AI Болжам"}
                       </div>
 
                       {/* Строки результата */}

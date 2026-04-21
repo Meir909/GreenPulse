@@ -24,6 +24,40 @@ interface StationsMapComponentProps {
 
 const PURIFICATION_RADIUS = 0.8;
 const KAZAKHSTAN_CENTER: [number, number] = [48.0196, 66.9237];
+const CACHE_KEY = "greenpulse_stations_cache";
+
+const MOCK_AKTAU_STATION: Station = {
+  id: 1,
+  name: "GreenPulse Ақтау #1",
+  latitude: 43.6527,
+  longitude: 51.1776,
+  temperature: 22.4,
+  humidity: 68,
+  co2_ppm: 418,
+  ph: 7.1,
+  light_intensity: 512,
+  status: "active",
+};
+
+const saveStationToCache = (station: Station) => {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    const cached: Station[] = raw ? JSON.parse(raw) : [];
+    const idx = cached.findIndex((s) => s.id === station.id);
+    if (idx >= 0) cached[idx] = station;
+    else cached.push(station);
+    localStorage.setItem(CACHE_KEY, JSON.stringify(cached));
+  } catch {}
+};
+
+const loadStationsFromCache = (): Station[] => {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+};
 
 // Зелёный маркер — реальная ESP32 станция
 const esp32Icon = L.divIcon({
@@ -55,6 +89,8 @@ const StationsMapComponent = ({ onStationSelect }: StationsMapComponentProps) =>
   const [esp32Station, setEsp32Station] = useState<Station | null>(null);
   const [esp32Online, setEsp32Online] = useState(false);
   const [bleConnected, setBleConnected] = useState(false);
+  const [cachedStations, setCachedStations] = useState<Station[]>([]);
+  const cachedMarkersRef = useRef<L.Marker[]>([]);
 
   const openStation = (station: Station) => {
     setSelectedStation(station);
@@ -91,6 +127,11 @@ const StationsMapComponent = ({ onStationSelect }: StationsMapComponentProps) =>
 
       setEsp32Station(station);
       setEsp32Online(hasGPS);
+
+      if (hasGPS) {
+        saveStationToCache(station);
+        setCachedStations(loadStationsFromCache());
+      }
 
       if (hasGPS && leafletMap.current) {
         if (esp32MarkerRef.current) esp32MarkerRef.current.remove();
@@ -141,6 +182,11 @@ const StationsMapComponent = ({ onStationSelect }: StationsMapComponentProps) =>
     const hasGPS = data.gps_valid && data.latitude !== 0 && data.longitude !== 0;
     setEsp32Online(hasGPS);
 
+    if (hasGPS) {
+      saveStationToCache(station);
+      setCachedStations(loadStationsFromCache());
+    }
+
     if (hasGPS && leafletMap.current) {
       if (esp32MarkerRef.current) esp32MarkerRef.current.remove();
       if (esp32CircleRef.current) esp32CircleRef.current.remove();
@@ -164,6 +210,16 @@ const StationsMapComponent = ({ onStationSelect }: StationsMapComponentProps) =>
     }
   };
 
+  // Иконка для кешированной (офлайн) станции
+  const cachedIcon = L.divIcon({
+    html: `<div style="width:24px;height:24px;background:#f59e0b;border:3px solid white;border-radius:50%;box-shadow:0 0 12px #f59e0b,0 0 6px rgba(0,0,0,0.8);cursor:pointer;position:relative;">
+      <div style="position:absolute;top:-8px;left:50%;transform:translateX(-50%);background:#f59e0b;color:black;font-size:9px;font-weight:bold;padding:1px 4px;border-radius:4px;white-space:nowrap;">CACHE</div>
+    </div>`,
+    iconSize: [24, 24],
+    iconAnchor: [12, 12],
+    className: "",
+  });
+
   // Инициализация карты
   useEffect(() => {
     if (!mapRef.current || leafletMap.current) return;
@@ -181,15 +237,49 @@ const StationsMapComponent = ({ onStationSelect }: StationsMapComponentProps) =>
       maxZoom: 19,
     }).addTo(map);
 
+    // Мок-станция в Актау (всегда видна на карте)
+    L.circle([MOCK_AKTAU_STATION.latitude, MOCK_AKTAU_STATION.longitude], {
+      radius: PURIFICATION_RADIUS * 1000,
+      color: "#00ff88",
+      weight: 2,
+      opacity: 0.6,
+      fillColor: "#00ff88",
+      fillOpacity: 0.08,
+      dashArray: "6, 4",
+    }).addTo(map);
+    L.marker([MOCK_AKTAU_STATION.latitude, MOCK_AKTAU_STATION.longitude], { icon: esp32Icon })
+      .on("click", () => openStation(MOCK_AKTAU_STATION))
+      .addTo(map);
+
+    // Загружаем кешированные станции из localStorage и показываем сразу
+    const cached = loadStationsFromCache();
+    setCachedStations(cached);
+    if (cached.length > 0) {
+      cached.forEach((station) => {
+        if (!station.latitude || !station.longitude) return;
+        const marker = L.marker([station.latitude, station.longitude], { icon: cachedIcon })
+          .on("click", () => openStation(station))
+          .addTo(map);
+        cachedMarkersRef.current.push(marker);
+      });
+      // Центрируем на последней кешированной станции
+      const last = cached[cached.length - 1];
+      if (last.latitude && last.longitude) {
+        map.setView([last.latitude, last.longitude], 12);
+      }
+    }
+
     // Геолокация пользователя
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         ({ coords }) => {
           setUserLocation({ lat: coords.latitude, lng: coords.longitude });
-          map.setView([coords.latitude, coords.longitude], 12);
+          if (cached.length === 0) {
+            map.setView([coords.latitude, coords.longitude], 12);
+          }
           L.marker([coords.latitude, coords.longitude], { icon: userIcon })
             .bindPopup(`<div style="background:#000;color:#fff;padding:8px;border:1px solid #00d4ff;border-radius:4px;font-family:sans-serif;">
-              <b style="color:#00d4ff;">Ваша локация</b><br/>
+              <b style="color:#00d4ff;">Сіздің орналасуыңыз</b><br/>
               <span style="font-size:12px;">${coords.latitude.toFixed(4)}°N, ${coords.longitude.toFixed(4)}°E</span>
             </div>`)
             .addTo(map);
@@ -201,6 +291,7 @@ const StationsMapComponent = ({ onStationSelect }: StationsMapComponentProps) =>
     return () => {
       map.remove();
       leafletMap.current = null;
+      cachedMarkersRef.current = [];
     };
   }, []);
 
@@ -213,7 +304,7 @@ const StationsMapComponent = ({ onStationSelect }: StationsMapComponentProps) =>
 
   return (
     <>
-      <div className="relative w-full rounded-2xl border border-cyan-500/30 overflow-hidden shadow-2xl" style={{ height: "600px" }}>
+      <div className="relative w-full rounded-2xl border border-cyan-500/30 overflow-hidden shadow-2xl" style={{ height: "600px", isolation: "isolate" }}>
         <div ref={mapRef} style={{ width: "100%", height: "100%" }} />
 
         {/* Статус геолокации */}
@@ -223,14 +314,14 @@ const StationsMapComponent = ({ onStationSelect }: StationsMapComponentProps) =>
           className="absolute top-4 left-4 bg-black/80 backdrop-blur-md p-2 rounded-lg border border-cyan-500/30 text-xs z-[1000] space-y-1"
         >
           {userLocation ? (
-            <div className="text-green-400">✅ Геолокация включена</div>
+            <div className="text-green-400">✅ Геолокация қосылды</div>
           ) : (
-            <div className="text-yellow-400">📍 Показана карта Казахстана</div>
+            <div className="text-yellow-400">📍 Қазақстан картасы</div>
           )}
           {bleConnected ? (
             <div className="text-blue-400 flex items-center gap-1">
               <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse inline-block" />
-              BLE подключён
+              BLE қосылды
             </div>
           ) : esp32Online ? (
             <div className="text-green-400 flex items-center gap-1">
@@ -240,6 +331,12 @@ const StationsMapComponent = ({ onStationSelect }: StationsMapComponentProps) =>
           ) : (
             <div className="text-gray-500">⚫ ESP32 офлайн</div>
           )}
+          {cachedStations.length > 0 && (
+            <div className="text-amber-400 flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-amber-400 inline-block" />
+              Кеш: {cachedStations.length} ст-я
+            </div>
+          )}
         </motion.div>
 
         {/* Легенда */}
@@ -248,15 +345,18 @@ const StationsMapComponent = ({ onStationSelect }: StationsMapComponentProps) =>
           animate={{ opacity: 1, y: 0 }}
           className="absolute bottom-4 left-4 bg-black/80 backdrop-blur-md p-3 rounded-lg border border-cyan-500/30 max-w-xs text-xs z-[1000]"
         >
-          <h4 className="text-cyan-300 font-bold mb-2">🗺️ Легенда</h4>
+          <h4 className="text-cyan-300 font-bold mb-2">🗺️ Түсіндірме</h4>
           <ul className="text-gray-300 space-y-1">
             <li className="flex items-center gap-2">
               <span className="w-3 h-3 rounded-full bg-green-400 inline-block shadow-[0_0_6px_#00ff88]" /> ESP32 Live станция
             </li>
             <li className="flex items-center gap-2">
-              <span className="w-3 h-3 rounded-full bg-cyan-400 inline-block shadow-[0_0_6px_#00d4ff]" /> Ваша локация
+              <span className="w-3 h-3 rounded-full bg-amber-400 inline-block shadow-[0_0_6px_#f59e0b]" /> Сақталған (офлайн)
             </li>
-            <li className="text-gray-400 mt-1">🖱️ Клик на маркер — подробности</li>
+            <li className="flex items-center gap-2">
+              <span className="w-3 h-3 rounded-full bg-cyan-400 inline-block shadow-[0_0_6px_#00d4ff]" /> Сіздің орналасуыңыз
+            </li>
+            <li className="text-gray-400 mt-1">🖱️ Маркерге басу — толығырақ</li>
           </ul>
         </motion.div>
 
@@ -281,7 +381,7 @@ const StationsMapComponent = ({ onStationSelect }: StationsMapComponentProps) =>
               onClick={() => openStation(esp32Station)}
               className="mt-2 w-full text-center text-green-300 border border-green-500/40 rounded py-1 hover:bg-green-500/10 transition-colors"
             >
-              Подробнее →
+              Толығырақ →
             </button>
           </motion.div>
         )}

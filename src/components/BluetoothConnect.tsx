@@ -118,11 +118,11 @@ const BluetoothConnect = ({ onDataReceived }: BluetoothConnectProps) => {
       setStatus("connected");
     } catch (e: any) {
       if (e.name === "NotFoundError") {
-        setErrorMsg("Устройство не найдено. Убедись что ESP32 включена.");
+        setErrorMsg("Құрылғы табылмады. ESP32 қосулы екенін тексеріңіз.");
       } else if (e.name === "SecurityError") {
-        setErrorMsg("Нужен HTTPS или localhost для Bluetooth.");
+        setErrorMsg("Bluetooth үшін HTTPS немесе localhost қажет.");
       } else {
-        setErrorMsg(e.message || "Неизвестная ошибка");
+        setErrorMsg(e.message || "Белгісіз қате");
       }
       setStatus("error");
     }
@@ -141,7 +141,7 @@ const BluetoothConnect = ({ onDataReceived }: BluetoothConnectProps) => {
       {status === "unsupported" && (
         <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
           <BluetoothOff className="w-4 h-4 shrink-0" />
-          Web Bluetooth не поддерживается. Используй Chrome на десктопе или Android.
+          Web Bluetooth қолдау көрсетілмейді. Chrome (десктоп немесе Android) пайдаланыңыз.
         </div>
       )}
 
@@ -153,14 +153,14 @@ const BluetoothConnect = ({ onDataReceived }: BluetoothConnectProps) => {
           className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-500/10 border border-blue-500/30 text-blue-300 text-sm font-medium hover:bg-blue-500/20 transition-colors w-full justify-center"
         >
           <Bluetooth className="w-4 h-4" />
-          Подключить ESP32 по Bluetooth
+          ESP32-ні Bluetooth арқылы қосу
         </motion.button>
       )}
 
       {status === "connecting" && (
         <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-500/10 border border-blue-500/30 text-blue-300 text-sm w-full justify-center">
           <Loader className="w-4 h-4 animate-spin" />
-          Поиск GreenPulse-Station...
+          GreenPulse-Station іздеуде...
         </div>
       )}
 
@@ -175,7 +175,7 @@ const BluetoothConnect = ({ onDataReceived }: BluetoothConnectProps) => {
             className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-500/10 border border-blue-500/30 text-blue-300 text-sm w-full justify-center hover:bg-blue-500/20 transition-colors"
           >
             <Bluetooth className="w-4 h-4" />
-            Попробовать снова
+            Қайта көру
           </button>
         </div>
       )}
@@ -193,13 +193,13 @@ const BluetoothConnect = ({ onDataReceived }: BluetoothConnectProps) => {
             <div className="bg-green-500/10 px-4 py-2 flex items-center justify-between">
               <div className="flex items-center gap-2 text-green-400 text-sm font-semibold">
                 <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse inline-block" />
-                ESP32 подключена
+                ESP32 қосылды
               </div>
               <button
                 onClick={disconnect}
                 className="text-gray-500 hover:text-red-400 transition-colors text-xs flex items-center gap-1"
               >
-                <BluetoothOff className="w-3 h-3" /> Отключить
+                <BluetoothOff className="w-3 h-3" /> Ажырату
               </button>
             </div>
 
@@ -212,7 +212,7 @@ const BluetoothConnect = ({ onDataReceived }: BluetoothConnectProps) => {
               <div className={`col-span-2 ${sensorData.gps_valid ? "text-green-400" : "text-yellow-400"}`}>
                 {sensorData.gps_valid
                   ? `📍 GPS: ${sensorData.latitude?.toFixed(4)}, ${sensorData.longitude?.toFixed(4)} (${sensorData.satellites} сат.)`
-                  : "📍 GPS: поиск спутников..."}
+                  : "📍 GPS: спутниктер іздеуде..."}
               </div>
             </div>
           </motion.div>
