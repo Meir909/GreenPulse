@@ -11,3 +11,8 @@ node_modules
 .env.local
 .next
 dist
+flutter_app
+greenpulse-air-bloom-main
+nextjs
+app.py
+requirements.txt
