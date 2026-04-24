@@ -1,5 +1,4 @@
 import ParticleBackground from "@/components/ParticleBackground";
-import Navbar from "@/components/Navbar";
 import HeroSection from "@/components/HeroSection";
 import ProblemSection from "@/components/ProblemSection";
 import SolutionSection from "@/components/SolutionSection";
@@ -9,13 +8,11 @@ import ComparisonSection from "@/components/ComparisonSection";
 import BusinessSection from "@/components/BusinessSection";
 import RoadmapSection from "@/components/RoadmapSection";
 import Footer from "@/components/FooterSection";
-import ChatbotFloatingButton from "@/components/ChatbotFloatingButton";
 
 const Index = () => {
   return (
-    <div className="relative min-h-screen bg-background overflow-x-hidden pb-16 md:pb-0">
+    <div className="relative min-h-screen bg-background overflow-x-hidden pb-24">
       <ParticleBackground />
-      <Navbar />
       <HeroSection />
       <ProblemSection />
       <SolutionSection />
@@ -25,7 +22,6 @@ const Index = () => {
       <BusinessSection />
       <RoadmapSection />
       <Footer />
-      <ChatbotFloatingButton />
     </div>
   );
 };

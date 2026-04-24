@@ -1,9 +1,7 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import Navbar from "@/components/Navbar";
 import StationsMapComponent from "@/components/StationsMapComponent";
 import AIAnalysisPanel from "@/components/AIAnalysisPanel";
-import ChatbotFloatingButton from "@/components/ChatbotFloatingButton";
 
 interface Station {
   id: number;
@@ -233,12 +231,10 @@ const StationsPage = () => {
   };
 
   return (
-    <div className="relative min-h-screen bg-background overflow-x-hidden pb-16 md:pb-0">
-      {/* Навигация */}
-      <Navbar />
+    <div className="relative min-h-screen bg-background overflow-x-hidden pb-24">
 
       {/* Основной контент */}
-      <main className="relative pt-20 pb-8 min-h-screen px-6">
+      <main className="relative pt-6 pb-8 min-h-screen px-4">
         {/* Заголовок */}
         <h1 className="text-4xl font-bold text-white mb-8">
           <span className="bg-gradient-to-r from-cyan-400 to-green-400 bg-clip-text text-transparent">
@@ -309,8 +305,6 @@ const StationsPage = () => {
           )}
       </main>
 
-      {/* Плавающая кнопка чатбота */}
-      <ChatbotFloatingButton />
     </div>
   );
 };
