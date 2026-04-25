@@ -24,38 +24,46 @@ def handler():
 
     req = request.get_json(silent=True) or {}
 
-    ph              = req.get("ph", 7.0)
     temperature     = req.get("temperature", 22)
+    temp_inside     = req.get("temp_inside")
+    humidity        = req.get("humidity", 65)
+    co2_ppm         = req.get("co2_ppm", 420)
+    air_quality_index = req.get("air_quality_index")
+    ph              = req.get("ph", 7.0)
     light_intensity = req.get("light_intensity", 450)
     eff             = photo_efficiency(temperature)
 
-    prompt = f"""GreenPulse bioreactor conditions:
-• pH: {ph} (optimal 6.5–7.5)
-• Temperature: {temperature}°C (optimal 20–25°C)
-• Light: {light_intensity} lux (optimal 400–600)
-• Calculated efficiency: {round(eff * 100)}%
-• Baseline: 38 kg CO2/year at 100% efficiency (Chlorella vulgaris)
+    temp_inside_line = f"- Температура ішінде: {temp_inside} C\n" if temp_inside is not None else ""
+    aqi_line = f"- Ауа сапасы AQI: {air_quality_index}/300\n" if air_quality_index is not None else ""
 
-Provide CO2 absorption forecast in Kazakh language:
+    prompt = f"""GreenPulse биореактор жағдайлары:
+- Сыртқы температура: {temperature} C (оптимум 20-25 C)
+{temp_inside_line}- Ылғалдылық: {humidity}%
+- CO2 (MQ135): {co2_ppm} ppm
+{aqi_line}- pH: {ph}
+- Жарық: {light_intensity} люкс
+- Есептелген тиімділік: {round(eff * 100)}%
+- Базалық: жылына 38 кг CO2 (100% тиімділікте, Chlorella vulgaris)
 
-⚡ Тиімділік: [number]% — [brief reason]
-⏱ 1 сағатта: [number] г CO2
-🌙 24 сағатта: [number] г CO2
-📅 Айына: [number] г CO2
-🌍 Жылына: [number] кг CO2
-📝 Ескерту: [1 sentence]
-💡 Жақсарту үшін: [one action]"""
+Барлық деректерді ескере отырып қазақ тілінде CO2 болжамын беріңіз:
+
+Тиімділік: [%] - [себеп]
+1 сағатта: [г] CO2
+24 сағатта: [г] CO2
+Айына: [г] CO2
+Жылына: [кг] CO2
+Ауа сапасы әсері: [MQ135 деректері бойынша]
+Жақсарту: [бір нақты ұсыныс]"""
 
     try:
         client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
         response = client.chat.completions.create(
-            model="gpt-4o",
+            model="o4-mini",
             messages=[
-                {"role": "system", "content": "You are a bioreactor scientist. Respond in Kazakh language."},
+                {"role": "system", "content": "Сіз биореактор ғалымысыз. Қазақ тілінде нақты жауап беріңіз."},
                 {"role": "user", "content": prompt}
             ],
-            max_tokens=250,
-            temperature=0.2
+            max_completion_tokens=350
         )
         res = jsonify({"prediction": response.choices[0].message.content})
         res.headers["Access-Control-Allow-Origin"] = "*"

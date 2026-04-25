@@ -11,8 +11,10 @@ interface Station {
   latitude: number;
   longitude: number;
   temperature: number;
+  temp_inside?: number;
   humidity: number;
   co2_ppm: number;
+  air_quality_index?: number;
   ph: number;
   light_intensity: number;
   status: "active" | "inactive";
@@ -32,8 +34,10 @@ const MOCK_AKTAU_STATION: Station = {
   latitude: 43.6527,
   longitude: 51.1776,
   temperature: 22.4,
+  temp_inside: 24.1,
   humidity: 68,
   co2_ppm: 418,
+  air_quality_index: 45,
   ph: 7.1,
   light_intensity: 512,
   status: "active",
@@ -118,8 +122,10 @@ const StationsMapComponent = ({ onStationSelect }: StationsMapComponentProps) =>
         latitude: d.latitude,
         longitude: d.longitude,
         temperature: d.temperature,
+        temp_inside: d.temp_inside,
         humidity: d.humidity,
         co2_ppm: d.co2_ppm,
+        air_quality_index: d.air_quality_index,
         ph: d.ph,
         light_intensity: d.light_intensity,
         status: "active",
