@@ -3,17 +3,19 @@ import json
 import os
 from openai import OpenAI
 
-SYSTEM_PROMPT = """Сіз GreenPulse жобасының ғылыми көмекшісісіз — Chlorella vulgaris балдырлары негізіндегі биореактор скамейкасы.
+CHAT_MODEL = os.environ.get("OPENAI_CHAT_MODEL", "gpt-4o-mini")
+SYSTEM_PROMPT = """You are GreenPulse AI, an assistant for an algae bioreactor air-quality project.
 
-НЕГІЗГІ ФАКТІЛЕР:
-- Микроорганизм: Chlorella vulgaris
-- CO2 сіңіру: фотосинтез арқылы
-- Оптималды температура: 20–30°C
-- Оптималды pH: 6.5–7.5
-- Жарық: >400 люкс
-- Болжамды сіңіру: жылына ~38 кг CO2
+Core facts:
+- Organism: Chlorella vulgaris
+- Primary function: absorb CO2 through photosynthesis and improve local air quality
+- Typical operating targets: temperature 20-30 C, pH 6.5-7.5, light above 400 lux
+- The project combines IoT telemetry, environmental monitoring, and urban sustainability
 
-Қазақ тілінде жауап бер. Қысқа және нақты бол (2-3 сөйлем)."""
+Reply in Russian.
+Keep answers concise, practical, and credible.
+If the user asks about sensor readings or forecasts, explain them in plain language.
+Do not invent measurements that were not provided in the conversation."""
 
 
 class handler(BaseHTTPRequestHandler):
@@ -35,16 +37,16 @@ class handler(BaseHTTPRequestHandler):
         except Exception:
             data = {}
 
-        user_message = data.get("message", "").strip()
+        user_message = (data.get("message") or "").strip()
         history = data.get("history", [])
 
         if not user_message:
-            self._respond(400, {"error": "No message"})
+            self._respond(400, {"status": "error", "message": "Message cannot be empty"})
             return
 
         api_key = os.environ.get("OPENAI_API_KEY")
         if not api_key:
-            self._respond(500, {"error": "OPENAI_API_KEY is not set"})
+            self._respond(500, {"status": "error", "message": "OPENAI_API_KEY is not set"})
             return
 
         try:
@@ -53,19 +55,20 @@ class handler(BaseHTTPRequestHandler):
             for item in history[-10:]:
                 role = item.get("role")
                 content = item.get("content", "")
-                if role in {"user", "assistant"} and content.strip():
+                if role in {"user", "assistant"} and isinstance(content, str) and content.strip():
                     messages.append({"role": role, "content": content.strip()})
             messages.append({"role": "user", "content": user_message})
 
             response = client.chat.completions.create(
-                model="gpt-4o-mini",
+                model=CHAT_MODEL,
                 messages=messages,
-                max_tokens=500,
-                temperature=0.7,
+                temperature=0.6,
+                max_tokens=450,
             )
-            self._respond(200, {"response": response.choices[0].message.content})
-        except Exception as e:
-            self._respond(500, {"error": str(e)})
+            text = response.choices[0].message.content or "I could not generate a response."
+            self._respond(200, {"status": "success", "response": text, "model": CHAT_MODEL})
+        except Exception as exc:
+            self._respond(500, {"status": "error", "message": str(exc)})
 
     def _respond(self, status, payload):
         body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
