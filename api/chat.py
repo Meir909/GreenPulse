@@ -1,7 +1,7 @@
 from http.server import BaseHTTPRequestHandler
 import json
 import os
-from openai import OpenAI
+import urllib.request
 
 CHAT_MODEL = os.environ.get("OPENAI_CHAT_MODEL", "gpt-4o-mini")
 SYSTEM_PROMPT = """You are GreenPulse AI, an assistant for an algae bioreactor air-quality project.
@@ -50,7 +50,6 @@ class handler(BaseHTTPRequestHandler):
             return
 
         try:
-            client = OpenAI(api_key=api_key)
             messages = [{"role": "system", "content": SYSTEM_PROMPT}]
             for item in history[-10:]:
                 role = item.get("role")
@@ -59,13 +58,25 @@ class handler(BaseHTTPRequestHandler):
                     messages.append({"role": role, "content": content.strip()})
             messages.append({"role": "user", "content": user_message})
 
-            response = client.chat.completions.create(
-                model=CHAT_MODEL,
-                messages=messages,
-                temperature=0.6,
-                max_tokens=450,
+            req_data = {
+                "model": CHAT_MODEL,
+                "messages": messages,
+                "temperature": 0.6,
+                "max_tokens": 450,
+            }
+            headers = {
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            }
+            req = urllib.request.Request(
+                "https://api.openai.com/v1/chat/completions",
+                data=json.dumps(req_data).encode("utf-8"),
+                headers=headers,
+                method="POST",
             )
-            text = response.choices[0].message.content or "I could not generate a response."
+            with urllib.request.urlopen(req, timeout=60) as resp:
+                response_data = json.loads(resp.read().decode("utf-8"))
+            text = response_data["choices"][0]["message"]["content"] or "I could not generate a response."
             self._respond(200, {"status": "success", "response": text, "model": CHAT_MODEL})
         except Exception as exc:
             self._respond(500, {"status": "error", "message": str(exc)})

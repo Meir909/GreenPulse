@@ -2,10 +2,11 @@ from http.server import BaseHTTPRequestHandler
 import json
 import os
 import sys
+import urllib.request
+import urllib.error
 
 sys.path.insert(0, os.path.dirname(__file__))
 from _telemetry import get_current_sensor_data
-from openai import OpenAI
 
 ANALYSIS_MODEL = os.environ.get("OPENAI_ANALYSIS_MODEL", "gpt-4o-mini")
 
@@ -69,10 +70,9 @@ Keep it short, concrete, and investor-demo friendly without sounding fake."""
             return
 
         try:
-            client = OpenAI(api_key=api_key)
-            response = client.chat.completions.create(
-                model=ANALYSIS_MODEL,
-                messages=[
+            req_data = {
+                "model": ANALYSIS_MODEL,
+                "messages": [
                     {
                         "role": "system",
                         "content": (
@@ -82,10 +82,22 @@ Keep it short, concrete, and investor-demo friendly without sounding fake."""
                     },
                     {"role": "user", "content": prompt},
                 ],
-                temperature=0.4,
-                max_tokens=280,
+                "temperature": 0.4,
+                "max_tokens": 280,
+            }
+            headers = {
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            }
+            req = urllib.request.Request(
+                "https://api.openai.com/v1/chat/completions",
+                data=json.dumps(req_data).encode("utf-8"),
+                headers=headers,
+                method="POST",
             )
-            text = response.choices[0].message.content or "Analysis is unavailable."
+            with urllib.request.urlopen(req, timeout=60) as resp:
+                response_data = json.loads(resp.read().decode("utf-8"))
+            text = response_data["choices"][0]["message"]["content"] or "Analysis is unavailable."
             self._respond(200, {
                 "status": "success",
                 "analysis": text,

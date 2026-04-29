@@ -3,7 +3,8 @@ from flask_cors import CORS
 from flask_socketio import SocketIO, emit
 import os
 from dotenv import load_dotenv
-from openai import OpenAI
+import urllib.request
+import json
 from datetime import datetime
 
 load_dotenv()
@@ -13,12 +14,11 @@ app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'greenpulse-secret-key')
 CORS(app, resources={r"/*": {"origins": "*"}})
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet', logger=False, engineio_logger=False)
 
-try:
-    client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
-    print("✅ OpenAI client initialized")
-except Exception as e:
-    print(f"❌ OpenAI init error: {e}")
-    client = None
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+if OPENAI_API_KEY:
+    print("✅ OpenAI API key configured")
+else:
+    print("❌ OPENAI_API_KEY not set")
 
 # Sensor data storage
 sensor_history = []          # Up to 500 readings
@@ -276,12 +276,12 @@ Respond strictly in this format, one item per line:
 🔧 Recommendation: [one specific actionable step]"""
 
     try:
-        if not client:
-            return jsonify({'status': 'error', 'message': 'OpenAI client not available'}), 500
+        if not OPENAI_API_KEY:
+            return jsonify({'status': 'error', 'message': 'OpenAI API key not available'}), 500
 
-        response = client.chat.completions.create(
-            model="gpt-4o",
-            messages=[
+        req_data = {
+            "model": "gpt-4o",
+            "messages": [
                 {"role": "system", "content": (
                     "You are a scientific advisor for GreenPulse, a Chlorella vulgaris "
                     "bioreactor monitoring system. Be precise and data-driven. "
@@ -290,13 +290,25 @@ Respond strictly in this format, one item per line:
                 )},
                 {"role": "user", "content": prompt}
             ],
-            max_tokens=250,
-            temperature=0.3
+            "max_tokens": 250,
+            "temperature": 0.3
+        }
+        headers = {
+            "Authorization": f"Bearer {OPENAI_API_KEY}",
+            "Content-Type": "application/json",
+        }
+        req = urllib.request.Request(
+            "https://api.openai.com/v1/chat/completions",
+            data=json.dumps(req_data).encode("utf-8"),
+            headers=headers,
+            method="POST",
         )
+        with urllib.request.urlopen(req, timeout=60) as resp:
+            response_data = json.loads(resp.read().decode("utf-8"))
 
         return jsonify({
             'status': 'success',
-            'analysis': response.choices[0].message.content,
+            'analysis': response_data["choices"][0]["message"]["content"],
             'parameters': params,
             'parameter_origins': param_origins,
             'data_source': 'ai_generated',
@@ -348,25 +360,37 @@ Respond strictly:
 💡 To improve: [one specific action]"""
 
     try:
-        if not client:
-            return jsonify({'status': 'error', 'message': 'OpenAI client not available'}), 500
+        if not OPENAI_API_KEY:
+            return jsonify({'status': 'error', 'message': 'OpenAI API key not available'}), 500
 
-        response = client.chat.completions.create(
-            model="gpt-4o",
-            messages=[
+        req_data = {
+            "model": "gpt-4o",
+            "messages": [
                 {"role": "system", "content": (
                     "You are a bioreactor scientist. Be factual and precise. "
                     "Always distinguish between estimated and measured values."
                 )},
                 {"role": "user", "content": prompt}
             ],
-            max_tokens=200,
-            temperature=0.2
+            "max_tokens": 200,
+            "temperature": 0.2
+        }
+        headers = {
+            "Authorization": f"Bearer {OPENAI_API_KEY}",
+            "Content-Type": "application/json",
+        }
+        req = urllib.request.Request(
+            "https://api.openai.com/v1/chat/completions",
+            data=json.dumps(req_data).encode("utf-8"),
+            headers=headers,
+            method="POST",
         )
+        with urllib.request.urlopen(req, timeout=60) as resp:
+            response_data = json.loads(resp.read().decode("utf-8"))
 
         return jsonify({
             'status': 'success',
-            'prediction': response.choices[0].message.content,
+            'prediction': response_data["choices"][0]["message"]["content"],
             'conditions': {'ph': ph, 'temperature': temperature, 'light_intensity': light_intensity},
             'calculated_efficiency': round(eff * 100, 1),
             'data_source': 'ai_generated',
@@ -427,24 +451,36 @@ RESPONSE STYLE:
 - Use emojis sparingly for clarity"""
 
     try:
-        if not client:
-            return jsonify({'status': 'error', 'message': 'OpenAI client not available'}), 500
+        if not OPENAI_API_KEY:
+            return jsonify({'status': 'error', 'message': 'OpenAI API key not available'}), 500
 
         messages = [{"role": "system", "content": system_prompt}]
         if history:
             messages.extend(history[-10:])
         messages.append({"role": "user", "content": user_message})
 
-        response = client.chat.completions.create(
-            model="gpt-4o",
-            messages=messages,
-            max_tokens=500,
-            temperature=0.7
+        req_data = {
+            "model": "gpt-4o",
+            "messages": messages,
+            "max_tokens": 500,
+            "temperature": 0.7
+        }
+        headers = {
+            "Authorization": f"Bearer {OPENAI_API_KEY}",
+            "Content-Type": "application/json",
+        }
+        req = urllib.request.Request(
+            "https://api.openai.com/v1/chat/completions",
+            data=json.dumps(req_data).encode("utf-8"),
+            headers=headers,
+            method="POST",
         )
+        with urllib.request.urlopen(req, timeout=60) as resp:
+            response_data = json.loads(resp.read().decode("utf-8"))
 
         return jsonify({
             'status': 'success',
-            'response': response.choices[0].message.content,
+            'response': response_data["choices"][0]["message"]["content"],
             'user_message': user_message
         }), 200
 
@@ -463,7 +499,7 @@ def health():
         'data_sources': {
             'sensor_data': 'live_measured' if current_sensor_data else 'unavailable',
             'co2_estimate': 'temperature_model' if len(sensor_history) >= 2 else 'insufficient_data',
-            'ai_analysis': 'gpt-4o' if client else 'unavailable'
+            'ai_analysis': 'gpt-4o' if OPENAI_API_KEY else 'unavailable'
         }
     }), 200
 

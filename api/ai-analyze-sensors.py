@@ -1,7 +1,7 @@
 from http.server import BaseHTTPRequestHandler
 import json
 import os
-from openai import OpenAI
+import urllib.request
 
 
 class handler(BaseHTTPRequestHandler):
@@ -56,20 +56,31 @@ class handler(BaseHTTPRequestHandler):
             return
 
         try:
-            client = OpenAI(api_key=api_key)
-            response = client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[
+            req_data = {
+                "model": "gpt-4o-mini",
+                "messages": [
                     {
                         "role": "system",
                         "content": "Сіз GreenPulse биореактор жүйесінің ғылыми кеңесшісісіз. Қазақ тілінде жауап беріңіз.",
                     },
                     {"role": "user", "content": prompt},
                 ],
-                max_tokens=400,
-                temperature=0.4,
+                "max_tokens": 400,
+                "temperature": 0.4,
+            }
+            headers = {
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            }
+            req = urllib.request.Request(
+                "https://api.openai.com/v1/chat/completions",
+                data=json.dumps(req_data).encode("utf-8"),
+                headers=headers,
+                method="POST",
             )
-            self._respond(200, {"analysis": response.choices[0].message.content})
+            with urllib.request.urlopen(req, timeout=60) as resp:
+                response_data = json.loads(resp.read().decode("utf-8"))
+            self._respond(200, {"analysis": response_data["choices"][0]["message"]["content"]})
         except Exception as e:
             self._respond(500, {"error": str(e)})
 

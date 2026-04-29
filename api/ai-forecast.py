@@ -2,10 +2,10 @@ from http.server import BaseHTTPRequestHandler
 import json
 import os
 import sys
+import urllib.request
 
 sys.path.insert(0, os.path.dirname(__file__))
 from _telemetry import get_current_sensor_data
-from openai import OpenAI
 
 PREDICTION_MODEL = os.environ.get("OPENAI_PREDICTION_MODEL", "gpt-4o-mini")
 
@@ -82,10 +82,9 @@ Keep it realistic, short, and easy to present on a dashboard."""
             return
 
         try:
-            client = OpenAI(api_key=api_key)
-            response = client.chat.completions.create(
-                model=PREDICTION_MODEL,
-                messages=[
+            req_data = {
+                "model": PREDICTION_MODEL,
+                "messages": [
                     {
                         "role": "system",
                         "content": (
@@ -95,10 +94,22 @@ Keep it realistic, short, and easy to present on a dashboard."""
                     },
                     {"role": "user", "content": prompt},
                 ],
-                temperature=0.3,
-                max_tokens=260,
+                "temperature": 0.3,
+                "max_tokens": 260,
+            }
+            headers = {
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            }
+            req = urllib.request.Request(
+                "https://api.openai.com/v1/chat/completions",
+                data=json.dumps(req_data).encode("utf-8"),
+                headers=headers,
+                method="POST",
             )
-            text = response.choices[0].message.content or "Prediction is unavailable."
+            with urllib.request.urlopen(req, timeout=60) as resp:
+                response_data = json.loads(resp.read().decode("utf-8"))
+            text = response_data["choices"][0]["message"]["content"] or "Prediction is unavailable."
             self._respond(200, {
                 "status": "success",
                 "prediction": text,
